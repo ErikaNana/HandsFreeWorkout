@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+
+    <string name="app_name">VoiceReg</string>
+    <string name="action_settings">Settings</string>
+    <string name="hello_world">Hello world!</string>
+    <string name="textView_text">Click the button and start speaking</string>
+    <string name="button_text">Click Me!</string>
+    <string name="mainLayout_text">VoiceRecognition Demo!</string>
+
+</resources>
