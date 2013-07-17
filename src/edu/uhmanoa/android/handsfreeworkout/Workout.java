@@ -18,11 +18,12 @@ import android.speech.RecognizerIntent;
 import android.speech.SpeechRecognizer;
 import android.util.Log;
 import android.view.View;
+import android.view.View.OnClickListener;
 import android.widget.Button;
 import android.widget.ListView;
 
-public class Workout extends Activity {
-	//use to handle the activity
+public class Workout extends Activity implements OnClickListener{
+
 	protected ListView wordsList;
 	protected Intent mIntent;
 	protected SpeechRecognizer mSpeechRec;
@@ -32,15 +33,15 @@ public class Workout extends Activity {
 	protected boolean mFinished;
 	protected MediaRecorder mRecorder;
 
-	/** The TimerTask which encapsulates the logic that will check for a recognized word. This 
-	 * ends up getting run by the Timer in the same way that a Thread runs a Runnable. */
 	
-	/** The time frequency at which the service should run the listener. (3 seconds) */
+	/** The time frequency at which check the max amplitude of the recording */
 	private static final long CHECK_FREQUENCY = 300L;
 	private static final long BASELINE_FREQUENCY = 1000L;
+	
 	private boolean mCheckBaseline = true;
 	private ArrayList<Integer> mAverage;
 	private Button mStartButton;
+	private Button mStopButton;
 	private int mBaselineAmp;
 	
 	@Override
@@ -50,6 +51,9 @@ public class Workout extends Activity {
 		
 		//initialize variables
 		mStartButton = (Button) findViewById(R.id.speakButton);
+		mStartButton.setOnClickListener(this);
+		mStopButton = (Button) findViewById(R.id.stopButton);
+		mStopButton.setOnClickListener(this);
 		wordsList = (ListView) findViewById(R.id.list);
 		mHandler = new Handler();
 		mSpeechRecAlive = false;
@@ -172,36 +176,11 @@ public class Workout extends Activity {
 	 * of time
 	 * The runnable will be run on the thread to which the handler is attached
 	 *  */
-/*	Runnable updateVoiceReg = new Runnable() {
-		//what to run at the time interval
-		@Override
-		public void run() {
-			Time now = new Time();
-			now.setToNow();
-			Log.w("Workout", "checking if alive");
-			if (speechRecAlive && finished) {
-				Log.w("Workout", "confirmed result");
-				speechRecAlive = false;
-				
-			}
-			if (!speechRecAlive) {
-				speechRec.destroy();
-				startVoiceRec();
-				//mute the beeps
-			}
-			Log.w("Workout", "life status:  " + speechRecAlive);
-			*//** Causes the Runnable r to be added to the message queue, to be run after the 
-			 * specified amount of time elapses. *//*
-			handler.postDelayed(updateVoiceReg, Workout.UPDATE_FREQUENCY);
-			
-		}
-	};*/
-
 	Runnable checkMaxAmp = new Runnable() {
 		/**Sets the baseline max amplitude for the first 10 seconds, and for every 1/3 second
 		 * after that, checks the max amplitude.  If it hears a sound that has a higher 
 		 * amplitude than the one found in the baseline, launches the voice recognizer
-		 * activiy */
+		 * activity */
 		@Override
 		public void run() {
 			Long frequency;
@@ -252,31 +231,38 @@ public class Workout extends Activity {
 	}
 	
 	public void stopListening() {
-/*		handler.removeCallbacks(updateVoiceReg);
-		speechRec.destroy();*/
+		//speechRec.destroy();
 		mHandler.removeCallbacks(checkMaxAmp);
 		mRecorder.stop();
 		mRecorder.release();
 		mRecorder = null;
 	}
-	/* Method that is called in XML file to handle the action of the button click */
-	public void speakButtonClicked(View view) {
-		Log.w("VR", "speak button is pressed");
-/*		startVoiceRec();
-		startRepeatingTask();*/
-		startListening();
-		//set this button as unclickable to avoid errors
-
-		mStartButton.setEnabled(false);
+	/**Handle button clicks */
+	@Override
+	public void onClick(View view) {
+		switch (view.getId()){
+			case(R.id.speakButton):{
+				Log.w("Workout", "size of average array (start):  " + this.mAverage.size());
+				Log.w("VR", "speak button is pressed");
+				startListening();
+				//set this button as unclickable to avoid errors
+				mStartButton.setEnabled(false);
+				break;
+			}
+			case (R.id.stopButton):{
+				Log.w("VR", "stop button is pressed");
+				stopListening();
+				//reset everything
+				mAverage.clear();
+				Log.w("Workout", "size of average array(finish):  " + this.mAverage.size());
+				mStartButton.setEnabled(true);
+				mCheckBaseline = true;
+				break;
+			}
+		}
+		
 	}
 	
-	public void stopButtonClicked(View view) {
-		Log.w("VR", "stop button is pressed");
-		stopListening();
-		//reset everything
-		mAverage.clear();
-		mStartButton.setEnabled(true);
-	}
 	private static String getOutputMediaFilePath(){
 		File mediaFile = null;
 		//get the base directory where the file gets stored
@@ -309,4 +295,6 @@ public class Workout extends Activity {
 		Log.w("Workout", "average:  " + averageTotal/10);
 		return averageTotal/10;
 	}
+
+
 }

@@ -14,15 +14,13 @@
         android:id="@+id/speakButton"
         android:layout_width="fill_parent"
         android:layout_height="wrap_content" 
-        android:text="@string/startButton_text" 
-        android:onClick="speakButtonClicked"/>
+        android:text="@string/startButton_text" />
     
        <Button
         android:id="@+id/stopButton"
         android:layout_width="fill_parent"
         android:layout_height="wrap_content" 
-        android:text="@string/stopButton_text" 
-        android:onClick="stopButtonClicked"/>
+        android:text="@string/stopButton_text" />
     
     <ListView
         android:id="@+id/list"
