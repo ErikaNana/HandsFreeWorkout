@@ -1,18 +1,21 @@
 package edu.uhmanoa.android.handsfreeworkout;
 
+import java.io.File;
+import java.io.IOException;
+import java.util.ArrayList;
 import java.util.List;
 
 import android.app.Activity;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.content.pm.ResolveInfo;
-import android.media.AudioManager;
+import android.media.MediaRecorder;
 import android.os.Bundle;
+import android.os.Environment;
 import android.os.Handler;
 import android.speech.RecognitionListener;
 import android.speech.RecognizerIntent;
 import android.speech.SpeechRecognizer;
-import android.text.format.Time;
 import android.util.Log;
 import android.view.View;
 import android.widget.Button;
@@ -21,18 +24,24 @@ import android.widget.ListView;
 public class Workout extends Activity {
 	//use to handle the activity
 	protected ListView wordsList;
-	protected Intent intent;
-	protected SpeechRecognizer speechRec;
-	protected RecognitionListener speechRecListen;
-	protected Handler handler;
-	protected boolean speechRecAlive;
-	protected boolean finished;
+	protected Intent mIntent;
+	protected SpeechRecognizer mSpeechRec;
+	protected RecognitionListener mSpeechRecListen;
+	protected Handler mHandler;
+	protected boolean mSpeechRecAlive;
+	protected boolean mFinished;
+	protected MediaRecorder mRecorder;
 
 	/** The TimerTask which encapsulates the logic that will check for a recognized word. This 
 	 * ends up getting run by the Timer in the same way that a Thread runs a Runnable. */
 	
 	/** The time frequency at which the service should run the listener. (3 seconds) */
-	private static final long UPDATE_FREQUENCY = 4000L;
+	private static final long CHECK_FREQUENCY = 300L;
+	private static final long BASELINE_FREQUENCY = 1000L;
+	private boolean mCheckBaseline = true;
+	private ArrayList<Integer> mAverage;
+	private Button mStartButton;
+	private int mBaselineAmp;
 	
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
@@ -40,8 +49,11 @@ public class Workout extends Activity {
 		setContentView(R.layout.workout);
 		
 		//initialize variables
-		Button speakButton = (Button) findViewById(R.id.speakButton);
+		mStartButton = (Button) findViewById(R.id.speakButton);
 		wordsList = (ListView) findViewById(R.id.list);
+		mHandler = new Handler();
+		mSpeechRecAlive = false;
+		mAverage = new ArrayList<Integer>();
 		
 		//disable button if no recognition service is present
 		PackageManager pm = getPackageManager();
@@ -54,24 +66,21 @@ public class Workout extends Activity {
 		 *                             if you  start the intent using startActivityForResult(Intent, int))*/
 		List<ResolveInfo> activities = pm.queryIntentActivities(new Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH), 0);
 		if (activities.size() == 0) {
-			speakButton.setEnabled(false);
-			speakButton.setText("Recognizer not present");
+			mStartButton.setEnabled(false);
+			mStartButton.setText("Recognizer not present");
 		}
-		//initialize variables
-		handler = new Handler();
-		speechRecAlive = false;
 	}
 	
 	public void startVoiceRec() {
-		speechRec = SpeechRecognizer.createSpeechRecognizer(this);
-		speechRecListen = new RecognitionListener() {
+		mSpeechRec = SpeechRecognizer.createSpeechRecognizer(this);
+		mSpeechRecListen = new RecognitionListener() {
 			
 			
 			/** Methods to override android.speech */
 			@Override
 			public void onBeginningOfSpeech() {
 				Log.w("VR", "on beginning of speech");
-				speechRecAlive = true;
+				mSpeechRecAlive = true;
 			}
 
 			@Override
@@ -87,7 +96,7 @@ public class Workout extends Activity {
 
 			@Override
 			public void onError(int error) {
-				speechRecAlive = false;	
+				mSpeechRecAlive = false;	
 				switch (error) {
 					case (SpeechRecognizer.ERROR_AUDIO):{
 						Log.w("VR", "audio");
@@ -136,10 +145,10 @@ public class Workout extends Activity {
 
 			@Override
 			public void onResults(Bundle arg0) {
-				speechRecAlive = true;	
+				mSpeechRecAlive = true;	
 				Log.w("VR", "on Results");
-				speechRecAlive = true;	
-				finished = true;
+				mSpeechRecAlive = true;	
+				mFinished = true;
 			}
 
 			@Override
@@ -148,22 +157,22 @@ public class Workout extends Activity {
 				
 			}
 		};
-		speechRec.setRecognitionListener(speechRecListen);
-		intent = new Intent (RecognizerIntent.ACTION_RECOGNIZE_SPEECH);
+		mSpeechRec.setRecognitionListener(mSpeechRecListen);
+		mIntent = new Intent (RecognizerIntent.ACTION_RECOGNIZE_SPEECH);
 		//this extra is required
-		intent.putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM);
+		mIntent.putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM);
 		//so can use as a service
-		intent.putExtra(RecognizerIntent.EXTRA_CALLING_PACKAGE, this.getPackageName());
+		mIntent.putExtra(RecognizerIntent.EXTRA_CALLING_PACKAGE, this.getPackageName());
 		// text prompt to show to the user when asking them to speak. 
-		intent.putExtra(RecognizerIntent.EXTRA_PROMPT, "Voice Recognition");
-		speechRec.startListening(intent);
+		mIntent.putExtra(RecognizerIntent.EXTRA_PROMPT, "Voice Recognition");
+		mSpeechRec.startListening(mIntent);
 	}
 	/** A Handler takes in a Runnable object and schedules its execution; it places the
 	 * runnable process as a job in an execution queue to be run after a specified amount
 	 * of time
 	 * The runnable will be run on the thread to which the handler is attached
 	 *  */
-	Runnable updateVoiceReg = new Runnable() {
+/*	Runnable updateVoiceReg = new Runnable() {
 		//what to run at the time interval
 		@Override
 		public void run() {
@@ -181,31 +190,123 @@ public class Workout extends Activity {
 				//mute the beeps
 			}
 			Log.w("Workout", "life status:  " + speechRecAlive);
-			/** Causes the Runnable r to be added to the message queue, to be run after the 
-			 * specified amount of time elapses. */
+			*//** Causes the Runnable r to be added to the message queue, to be run after the 
+			 * specified amount of time elapses. *//*
 			handler.postDelayed(updateVoiceReg, Workout.UPDATE_FREQUENCY);
 			
 		}
+	};*/
+
+	Runnable checkMaxAmp = new Runnable() {
+		/**Sets the baseline max amplitude for the first 10 seconds, and for every 1/3 second
+		 * after that, checks the max amplitude.  If it hears a sound that has a higher 
+		 * amplitude than the one found in the baseline, launches the voice recognizer
+		 * activiy */
+		@Override
+		public void run() {
+			Long frequency;
+			//for first ten seconds do an average
+			int maxAmp = mRecorder.getMaxAmplitude();
+			if (mCheckBaseline) {
+				frequency = Workout.BASELINE_FREQUENCY;
+				Log.w("Workout", "setting up baseline");
+				Log.w("Workout", "max amp:  " + maxAmp);
+				mAverage.add(maxAmp);
+				if(mAverage.size() == 10) {
+					//set the baseline max amp
+					mBaselineAmp = getBaseline();
+					mCheckBaseline = false;
+				}
+			}
+			else {
+				frequency = Workout.CHECK_FREQUENCY;
+				Log.w("Workout", "listening");
+				Log.w("Workout", "max amp:  " + maxAmp);
+				if (mBaselineAmp > 0) {
+					//launch the speech recognizer and stop listening
+				}
+			}
+			Log.w("Workout", "frequency:  " + frequency);
+			mHandler.postDelayed(checkMaxAmp, frequency);
+		}
 	};
-	
-	public void startRepeatingTask() {
-		updateVoiceReg.run();
+	public void startListening() {
+		 mRecorder = new MediaRecorder();
+		 mRecorder.setAudioSource(MediaRecorder.AudioSource.MIC);
+		 mRecorder.setOutputFormat(MediaRecorder.OutputFormat.THREE_GPP);
+		 String name = getOutputMediaFilePath();
+		 mRecorder.setOutputFile(name);
+		 mRecorder.setAudioEncoder(MediaRecorder.AudioEncoder.DEFAULT);
+
+		 try {
+			mRecorder.prepare();
+		} catch (IllegalStateException e) {
+			Log.w("WorkOut", e.getMessage());
+			e.printStackTrace();
+		} catch (IOException e) {
+			Log.w("Workout", e.getMessage());
+			e.printStackTrace();
+		}
+		mRecorder.start();
+		checkMaxAmp.run();
 	}
 	
-	public void stopRepeatingTask() {
-		handler.removeCallbacks(updateVoiceReg);
-		speechRec.destroy();
+	public void stopListening() {
+/*		handler.removeCallbacks(updateVoiceReg);
+		speechRec.destroy();*/
+		mHandler.removeCallbacks(checkMaxAmp);
+		mRecorder.stop();
+		mRecorder.release();
+		mRecorder = null;
 	}
 	/* Method that is called in XML file to handle the action of the button click */
 	public void speakButtonClicked(View view) {
 		Log.w("VR", "speak button is pressed");
-		startVoiceRec();
-		startRepeatingTask();
+/*		startVoiceRec();
+		startRepeatingTask();*/
+		startListening();
+		//set this button as unclickable to avoid errors
+
+		mStartButton.setEnabled(false);
 	}
 	
 	public void stopButtonClicked(View view) {
 		Log.w("VR", "stop button is pressed");
-		stopRepeatingTask();
+		stopListening();
+		//reset everything
+		mAverage.clear();
+		mStartButton.setEnabled(true);
 	}
-
+	private static String getOutputMediaFilePath(){
+		File mediaFile = null;
+		//get the base directory where the file gets stored
+		File dir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS);
+		/* construct the file space using the specified directory and name
+		 * this is where the pictures will be stored */
+		File mediaStorageDir = new File(dir,"HandsFreeWorkout");
+		//check to see if there is not a file at the storage directory path contained in mediaStorageDir
+		if (!mediaStorageDir.exists()) {
+			/* check to make sure that the directory was created correctly
+			 * mkdirs returns false if the directory already exists
+			 */
+			if (!mediaStorageDir.mkdirs()) {
+				Log.w("WalkAbout", "directory creation process failed");
+				return null;			}
+			}
+		else {
+			//create a new file with the complete path name
+			mediaFile = new File(mediaStorageDir.getPath() + File.separator + "recording.3gp");
+		}
+		Log.w("Workout", mediaFile.getAbsolutePath());
+		return mediaFile.getAbsolutePath();
+	}
+	
+	public int getBaseline() {
+		int averageTotal = 0;
+		for (int number: mAverage) {
+			averageTotal += number;
+		}
+		Log.w("Workout", "average:  " + averageTotal/10);
+		return averageTotal/10;
+	}
 }
