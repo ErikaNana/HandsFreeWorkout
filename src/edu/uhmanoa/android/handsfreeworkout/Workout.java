@@ -1,18 +1,15 @@
 package edu.uhmanoa.android.handsfreeworkout;
 
-import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
 import android.app.Activity;
-import android.app.Application;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.content.pm.ResolveInfo;
 import android.media.MediaRecorder;
 import android.os.Bundle;
-import android.os.Environment;
 import android.os.Handler;
 import android.speech.RecognitionListener;
 import android.speech.RecognizerIntent;
@@ -43,13 +40,13 @@ public class Workout extends Activity implements OnClickListener{
 	protected boolean mListeningForCommands;
 	protected int mBaselineAmp;
 	
-	protected static String SAVED_SPEECH_REC_ALIVE_VALUE = "saved speech";
-	protected static String SAVED_FINISHED_SPEECH_REC_VALUE = "finished speech";
-	protected static String SAVED_DOING_SPEECH_REC_VALUE = "doing speecrech";
-	protected static String SAVED_CHECK_BASELINE_VALUE = "check baseline";
-	protected static String SAVED_BASELINE_AMP_VALUE = "saved baseline";
-	protected static String SAVED_LISTENING_FOR_COMMANDS_VALUE = "listening for commands";
-	protected static String SAVED_AVERAGE_ARRAYLIST_VALUE = "average array list";
+	protected static final String SAVED_SPEECH_REC_ALIVE_VALUE = "saved speech";
+	protected static final String SAVED_FINISHED_SPEECH_REC_VALUE = "finished speech";
+	protected static final String SAVED_DOING_SPEECH_REC_VALUE = "doing speecrech";
+	protected static final String SAVED_CHECK_BASELINE_VALUE = "check baseline";
+	protected static final String SAVED_BASELINE_AMP_VALUE = "saved baseline";
+	protected static final String SAVED_LISTENING_FOR_COMMANDS_VALUE = "listening for commands";
+	protected static final String SAVED_AVERAGE_ARRAYLIST_VALUE = "average array list";
 	
 	/** The time frequency at which check the max amplitude of the recording */
 	protected static final long UPDATE_FREQUENCY = 4000L;
@@ -58,7 +55,6 @@ public class Workout extends Activity implements OnClickListener{
 
 	/**
 	 * ISSUES TO DEAL WITH STILL:
-	 * persistence (when the app is interrupted)
 	 * accidental loud noises
 	 * leaked services (when phone was moving around)
 	 */
@@ -95,8 +91,7 @@ public class Workout extends Activity implements OnClickListener{
 		mCheckBaseline = true;
 	}
 	
-	//if voice recognition, then not listening
-	//if not listening, then voice recognition
+	/* Start voice recognition */
 	public void startVoiceRec() {
 		//flag that we're doing speech recognition
 		mDoingSpeechRec = true;
@@ -202,6 +197,7 @@ public class Workout extends Activity implements OnClickListener{
 		mSpeechRec.startListening(mIntent);
 	}
 	
+	/* Stop speech recognition */
 	public void stopVoiceRec() {
 		mDoingSpeechRec = false;
 		mHandler.removeCallbacks(checkSpeechRec);
@@ -255,14 +251,14 @@ public class Workout extends Activity implements OnClickListener{
 					mAverage.add(maxAmp);
 					if(mAverage.size() == 10) {
 						//set the baseline max amp
-						mBaselineAmp = getBaseline();
+						mBaselineAmp = Utils.getBaseline(mAverage);
 						mCheckBaseline = false;
 					}
 				}
 				else {
 					//get number of digits
-					int digitsCurrent = getDigits(maxAmp);
-					int digitsBaseline = getDigits(mBaselineAmp);
+					int digitsCurrent = Utils.getDigits(maxAmp);
+					int digitsBaseline = Utils.getDigits(mBaselineAmp);
 					
 					//if the difference is one or greater, then it is a command
 					int difference = digitsCurrent - digitsBaseline;
@@ -282,6 +278,7 @@ public class Workout extends Activity implements OnClickListener{
 			}
 		}
 	};
+	/* Start listening for commands */
 	public void startListening() {
 		mListeningForCommands = true;
 		//for persistence
@@ -289,7 +286,7 @@ public class Workout extends Activity implements OnClickListener{
 		 mRecorder = new MediaRecorder();
 		 mRecorder.setAudioSource(MediaRecorder.AudioSource.MIC);
 		 mRecorder.setOutputFormat(MediaRecorder.OutputFormat.THREE_GPP);
-		 String name = getOutputMediaFilePath();
+		 String name = Utils.getOutputMediaFilePath();
 		 mRecorder.setOutputFile(name);
 		 mRecorder.setAudioEncoder(MediaRecorder.AudioEncoder.DEFAULT);
 
@@ -305,7 +302,7 @@ public class Workout extends Activity implements OnClickListener{
 		mRecorder.start();
 		checkMaxAmp.run();
 	}
-	
+	/* Stop listening for commands */
 	public void stopListening() {
 		mListeningForCommands = false;
 		mHandler.removeCallbacks(checkMaxAmp);
@@ -313,7 +310,7 @@ public class Workout extends Activity implements OnClickListener{
 		mRecorder.release();
 		mRecorder = null;
 	}
-	
+	/*Handle input from the speech recognizer */
 	public void handleInput(ArrayList<String> results) {
 		//convert String Array to String ArrayList to match constructor for ArrayAdapter
 	        wordsList.setAdapter(new ArrayAdapter<String>(this, android.R.layout.simple_list_item_1,
@@ -355,47 +352,8 @@ public class Workout extends Activity implements OnClickListener{
 		
 	}
 	
-	//later make this a file that is private to the application
-	private static String getOutputMediaFilePath(){
-		File mediaFile = null;
-		//get the base directory where the file gets stored
-		File dir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS);
-		/* construct the file space using the specified directory and name
-		 * this is where the pictures will be stored */
-		File mediaStorageDir = new File(dir,"HandsFreeWorkout");
-		//check to see if there is not a file at the storage directory path contained in mediaStorageDir
-		if (!mediaStorageDir.exists()) {
-			/* check to make sure that the directory was created correctly
-			 * mkdirs returns false if the directory already exists
-			 */
-			if (!mediaStorageDir.mkdirs()) {
-				Log.w("WalkAbout", "directory creation process failed");
-				return null;			}
-			}
-		else {
-			//create a new file with the complete path name
-			mediaFile = new File(mediaStorageDir.getPath() + File.separator + "recording.3gp");
-		}
-		Log.w("Workout", mediaFile.getAbsolutePath());
-		return mediaFile.getAbsolutePath();
-	}
-	
-	public int getBaseline() {
-		int averageTotal = 0;
-		for (int number: mAverage) {
-			averageTotal += number;
-		}
-		Log.w("Workout", "average:  " + averageTotal/10);
-		return averageTotal/10;
-	}
-	
-	public static int getDigits(int number) {
-		String stringNumber = String.valueOf(number);
-		return stringNumber.length();
-	} 
-	/** Called when activity is interrupted, like orientation change
-	 * When this happens, activity is recreated 
-	 * Need to save recording variable in preferences*/
+
+	/** Called when activity is interrupted, like orientation change */
 	protected void onPause() {
 		Log.w("Workout", "activity interrupted");
 		Log.w("Workout", "(on pause) listening for commands:  " + mListeningForCommands);
@@ -415,7 +373,7 @@ public class Workout extends Activity implements OnClickListener{
 		Log.w("Workout", "(on pause) baseline:  " + mCheckBaseline);
 		super.onPause();
 	}
-
+	/** Called when user comes back to the activity */
 	protected void onResume() {
 		Log.w("Workout", "on resume");
 		//so that can resume, but also considering first run of app
