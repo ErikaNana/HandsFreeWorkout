@@ -6,6 +6,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 import android.app.Activity;
+import android.app.Application;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.content.pm.ResolveInfo;
@@ -19,6 +20,7 @@ import android.speech.SpeechRecognizer;
 import android.util.Log;
 import android.view.View;
 import android.view.View.OnClickListener;
+import android.widget.ArrayAdapter;
 import android.widget.Button;
 import android.widget.ListView;
 
@@ -29,20 +31,37 @@ public class Workout extends Activity implements OnClickListener{
 	protected SpeechRecognizer mSpeechRec;
 	protected RecognitionListener mSpeechRecListen;
 	protected Handler mHandler;
+	protected MediaRecorder mRecorder;
+	protected ArrayList<Integer> mAverage;
+	protected Button mStartButton;
+	protected Button mStopButton;
+	
 	protected boolean mSpeechRecAlive;
 	protected boolean mFinished;
-	protected MediaRecorder mRecorder;
-
+	protected boolean mDoingSpeechRec;
+	protected boolean mCheckBaseline;
+	protected boolean mListeningForCommands;
+	protected int mBaselineAmp;
+	
+	protected static String SAVED_SPEECH_REC_ALIVE_VALUE = "saved speech";
+	protected static String SAVED_FINISHED_SPEECH_REC_VALUE = "finished speech";
+	protected static String SAVED_DOING_SPEECH_REC_VALUE = "doing speecrech";
+	protected static String SAVED_CHECK_BASELINE_VALUE = "check baseline";
+	protected static String SAVED_BASELINE_AMP_VALUE = "saved baseline";
+	protected static String SAVED_LISTENING_FOR_COMMANDS_VALUE = "listening for commands";
+	protected static String SAVED_AVERAGE_ARRAYLIST_VALUE = "average array list";
 	
 	/** The time frequency at which check the max amplitude of the recording */
-	private static final long CHECK_FREQUENCY = 300L;
-	private static final long BASELINE_FREQUENCY = 1000L;
-	
-	private boolean mCheckBaseline = true;
-	private ArrayList<Integer> mAverage;
-	private Button mStartButton;
-	private Button mStopButton;
-	private int mBaselineAmp;
+	protected static final long UPDATE_FREQUENCY = 4000L;
+	protected static final long CHECK_FREQUENCY = 1000L; //change this to 50L after debugging
+	protected static final long BASELINE_FREQUENCY = 1000L;
+
+	/**
+	 * ISSUES TO DEAL WITH STILL:
+	 * persistence (when the app is interrupted)
+	 * accidental loud noises
+	 * leaked services (when phone was moving around)
+	 */
 	
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
@@ -73,9 +92,16 @@ public class Workout extends Activity implements OnClickListener{
 			mStartButton.setEnabled(false);
 			mStartButton.setText("Recognizer not present");
 		}
+		mCheckBaseline = true;
 	}
 	
+	//if voice recognition, then not listening
+	//if not listening, then voice recognition
 	public void startVoiceRec() {
+		//flag that we're doing speech recognition
+		mDoingSpeechRec = true;
+		//for persistence
+		mStartButton.setEnabled(false);
 		mSpeechRec = SpeechRecognizer.createSpeechRecognizer(this);
 		mSpeechRecListen = new RecognitionListener() {
 			
@@ -148,11 +174,15 @@ public class Workout extends Activity implements OnClickListener{
 			}
 
 			@Override
-			public void onResults(Bundle arg0) {
-				mSpeechRecAlive = true;	
+			public void onResults(Bundle bundle) {
 				Log.w("VR", "on Results");
 				mSpeechRecAlive = true;	
 				mFinished = true;
+				//heard result so stop listening for words
+				stopVoiceRec();
+				//handle the output
+				ArrayList<String> results = bundle.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION);
+				handleInput(results);
 			}
 
 			@Override
@@ -171,45 +201,91 @@ public class Workout extends Activity implements OnClickListener{
 		mIntent.putExtra(RecognizerIntent.EXTRA_PROMPT, "Voice Recognition");
 		mSpeechRec.startListening(mIntent);
 	}
+	
+	public void stopVoiceRec() {
+		mDoingSpeechRec = false;
+		mHandler.removeCallbacks(checkSpeechRec);
+		mSpeechRec.destroy();
+		mSpeechRec = null;
+	}
 	/** A Handler takes in a Runnable object and schedules its execution; it places the
 	 * runnable process as a job in an execution queue to be run after a specified amount
 	 * of time
-	 * The runnable will be run on the thread to which the handler is attached
-	 *  */
+	 * The runnable will be run on the thread to which the handler is attached*/
+	
+	/** This periodically checks to see if there was input into speechRecognizer */
+	Runnable checkSpeechRec = new Runnable() {
+		
+		@Override
+		public void run() {
+			Log.w("Workout", "checking if alive");
+			if (mSpeechRecAlive && mFinished) {
+				Log.w("Workout", "confirmed result");
+				mSpeechRecAlive = false;
+			}
+			
+			if (!mSpeechRecAlive) {
+				mSpeechRec.destroy();
+				startVoiceRec();
+			}
+			mHandler.postDelayed(checkSpeechRec, Workout.UPDATE_FREQUENCY);
+		}
+	};
+	
 	Runnable checkMaxAmp = new Runnable() {
 		/**Sets the baseline max amplitude for the first 10 seconds, and for every 1/3 second
 		 * after that, checks the max amplitude.  If it hears a sound that has a higher 
 		 * amplitude than the one found in the baseline, launches the voice recognizer
-		 * activity */
+		 * activity 
+		 * Cases to consider:  panting (like when you're tired)
+		 * 					   unnecessary talking*/
 		@Override
 		public void run() {
-			Long frequency;
-			//for first ten seconds do an average
-			int maxAmp = mRecorder.getMaxAmplitude();
-			if (mCheckBaseline) {
-				frequency = Workout.BASELINE_FREQUENCY;
-				Log.w("Workout", "setting up baseline");
-				Log.w("Workout", "max amp:  " + maxAmp);
-				mAverage.add(maxAmp);
-				if(mAverage.size() == 10) {
-					//set the baseline max amp
-					mBaselineAmp = getBaseline();
-					mCheckBaseline = false;
-				}
+			//if there is no recorder (like when launch speech recognizer) don't do anything
+			if (mRecorder == null) {
+				return;
 			}
 			else {
-				frequency = Workout.CHECK_FREQUENCY;
-				Log.w("Workout", "listening");
-				Log.w("Workout", "max amp:  " + maxAmp);
-				if (mBaselineAmp > 0) {
-					//launch the speech recognizer and stop listening
+				Long frequency;
+				//for first ten seconds do an average
+				int maxAmp = mRecorder.getMaxAmplitude();
+			
+				if (mCheckBaseline) {
+					frequency = Workout.BASELINE_FREQUENCY;
+					mAverage.add(maxAmp);
+					if(mAverage.size() == 10) {
+						//set the baseline max amp
+						mBaselineAmp = getBaseline();
+						mCheckBaseline = false;
+					}
 				}
+				else {
+					//get number of digits
+					int digitsCurrent = getDigits(maxAmp);
+					int digitsBaseline = getDigits(mBaselineAmp);
+					
+					//if the difference is one or greater, then it is a command
+					int difference = digitsCurrent - digitsBaseline;
+					if (difference > 0) {
+						Log.e("Workout", "spoke at volume:  " + maxAmp);
+						//launch the speech recognizer and stop listening
+						stopListening();
+						startVoiceRec();
+						checkSpeechRec.run();
+					}
+					frequency = Workout.CHECK_FREQUENCY;
+					Log.w("Workout", "max amp:  " + maxAmp);
+					Log.w("Workout", "current digits" + digitsCurrent);
+					Log.w("Workout", "baseline digits" + digitsBaseline);
+				}
+				mHandler.postDelayed(checkMaxAmp, frequency);
 			}
-			Log.w("Workout", "frequency:  " + frequency);
-			mHandler.postDelayed(checkMaxAmp, frequency);
 		}
 	};
 	public void startListening() {
+		mListeningForCommands = true;
+		//for persistence
+		mStartButton.setEnabled(false);
 		 mRecorder = new MediaRecorder();
 		 mRecorder.setAudioSource(MediaRecorder.AudioSource.MIC);
 		 mRecorder.setOutputFormat(MediaRecorder.OutputFormat.THREE_GPP);
@@ -231,38 +307,55 @@ public class Workout extends Activity implements OnClickListener{
 	}
 	
 	public void stopListening() {
-		//speechRec.destroy();
+		mListeningForCommands = false;
 		mHandler.removeCallbacks(checkMaxAmp);
 		mRecorder.stop();
 		mRecorder.release();
 		mRecorder = null;
+	}
+	
+	public void handleInput(ArrayList<String> results) {
+		//convert String Array to String ArrayList to match constructor for ArrayAdapter
+	        wordsList.setAdapter(new ArrayAdapter<String>(this, android.R.layout.simple_list_item_1,
+	                results));
+		Log.e("Workout", "results");
+		//start listening for commands again
+		startListening();
+ 
 	}
 	/**Handle button clicks */
 	@Override
 	public void onClick(View view) {
 		switch (view.getId()){
 			case(R.id.speakButton):{
-				Log.w("Workout", "size of average array (start):  " + this.mAverage.size());
-				Log.w("VR", "speak button is pressed");
-				startListening();
-				//set this button as unclickable to avoid errors
-				mStartButton.setEnabled(false);
+				Log.w("Workout", "speak button is pressed");
+				//check for accidental clicks
+				if (!mListeningForCommands) {
+					startListening();
+					mStartButton.setEnabled(false);
+				}
 				break;
 			}
 			case (R.id.stopButton):{
-				Log.w("VR", "stop button is pressed");
-				stopListening();
-				//reset everything
-				mAverage.clear();
-				Log.w("Workout", "size of average array(finish):  " + this.mAverage.size());
-				mStartButton.setEnabled(true);
-				mCheckBaseline = true;
+				Log.w("Workout", "stop button is pressed");
+				//check for accidental clicks
+				if (mListeningForCommands) {
+					stopListening();
+					if (mDoingSpeechRec) {
+						stopVoiceRec();
+					}
+					//reset everything
+					mAverage.clear();
+					mStartButton.setEnabled(true);
+					mCheckBaseline = true;
+				}
 				break;
 			}
 		}
 		
 	}
 	
+	//later make this a file that is private to the application
 	private static String getOutputMediaFilePath(){
 		File mediaFile = null;
 		//get the base directory where the file gets stored
@@ -295,6 +388,87 @@ public class Workout extends Activity implements OnClickListener{
 		Log.w("Workout", "average:  " + averageTotal/10);
 		return averageTotal/10;
 	}
+	
+	public static int getDigits(int number) {
+		String stringNumber = String.valueOf(number);
+		return stringNumber.length();
+	} 
+	/** Called when activity is interrupted, like orientation change
+	 * When this happens, activity is recreated 
+	 * Need to save recording variable in preferences*/
+	protected void onPause() {
+		Log.w("Workout", "activity interrupted");
+		Log.w("Workout", "(on pause) listening for commands:  " + mListeningForCommands);
+		Log.w("Workout", "(on pause) speech rec:  " + mDoingSpeechRec);
+		//can't use the stop* methods because of the boolean flags
+		if (mRecorder != null) {
+			mHandler.removeCallbacks(checkMaxAmp);
+			mRecorder.stop();
+			mRecorder.release();
+			mRecorder = null;
+		}
+		if (mSpeechRec != null) {
+			mHandler.removeCallbacks(checkSpeechRec);
+			mSpeechRec.destroy();
+			mSpeechRec = null;
+		}
+		Log.w("Workout", "(on pause) baseline:  " + mCheckBaseline);
+		super.onPause();
+	}
 
+	protected void onResume() {
+		Log.w("Workout", "on resume");
+		//so that can resume, but also considering first run of app
+		if (mListeningForCommands) {
+			Log.w("Workout", "listening for commands");
+			startListening();
+		}
+		if (mDoingSpeechRec) {
+			Log.w("Workout", "resuming speech recognition");
+			startVoiceRec();
+		}
+		super.onResume();
+	}
+	/**
+	 * Save the instance data
+	 */
+	@Override
+	protected void onSaveInstanceState(Bundle outState) {
+		//store the current values in outState
+		Log.w("Workout", "saving instance state");
 
+		outState.putBoolean(SAVED_SPEECH_REC_ALIVE_VALUE, mSpeechRecAlive);
+		outState.putBoolean(SAVED_FINISHED_SPEECH_REC_VALUE, mFinished);
+		outState.putBoolean(SAVED_DOING_SPEECH_REC_VALUE, mDoingSpeechRec);
+		outState.putBoolean(SAVED_CHECK_BASELINE_VALUE, mCheckBaseline);
+		outState.putBoolean(SAVED_LISTENING_FOR_COMMANDS_VALUE, mListeningForCommands);
+		outState.putInt(SAVED_BASELINE_AMP_VALUE, mBaselineAmp);
+		outState.putIntegerArrayList(SAVED_AVERAGE_ARRAYLIST_VALUE, mAverage);
+		Log.w("Workout","(save) mCheckBaseLine:  " + mCheckBaseline);
+		Log.w("Workout", "(save) doing speechRec:  " + mDoingSpeechRec);
+		Log.w("Workout", "(save) listening for commands:  " + mListeningForCommands);
+		super.onSaveInstanceState(outState);
+	}
+	
+	/**
+	 * Restore the instance data
+	 */
+	@Override
+	protected void onRestoreInstanceState(Bundle savedInstanceState) {
+		Log.w("Workout", "restoring instance state");
+		super.onRestoreInstanceState(savedInstanceState);
+		//retrieve the values and set them
+		//maybe test for null and use Bundle.containsKey() method later
+
+		mSpeechRecAlive = savedInstanceState.getBoolean(SAVED_DOING_SPEECH_REC_VALUE);
+		mFinished= savedInstanceState.getBoolean(SAVED_FINISHED_SPEECH_REC_VALUE);
+		mDoingSpeechRec = savedInstanceState.getBoolean(SAVED_DOING_SPEECH_REC_VALUE);
+		mCheckBaseline = savedInstanceState.getBoolean(SAVED_CHECK_BASELINE_VALUE);
+		mListeningForCommands = savedInstanceState.getBoolean(SAVED_LISTENING_FOR_COMMANDS_VALUE);
+		mBaselineAmp = savedInstanceState.getInt(SAVED_BASELINE_AMP_VALUE);
+		mAverage = savedInstanceState.getIntegerArrayList(SAVED_AVERAGE_ARRAYLIST_VALUE);
+		Log.w("Workout","(restore) mCheckBaseLine:  " + mCheckBaseline);
+		Log.w("Workout", "(restore) doing speechRec:  " + mDoingSpeechRec);
+		Log.w("Workout", "(restore) listening for commands:  " + mListeningForCommands);
+	}
 }
