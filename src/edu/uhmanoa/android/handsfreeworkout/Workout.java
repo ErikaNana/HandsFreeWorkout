@@ -132,19 +132,7 @@ public class Workout extends Activity implements OnClickListener, TextToSpeech.O
 			public void onDone(String utteranceID) {
 				String id = utteranceID;
 				Log.e("Workout", "utterance:  " + utteranceID);
-
-/*				Runnable pause  = new Runnable() {
-					@Override
-					public void run() {
-						Log.w("Workout", "Pausing");
-						// TODO Auto-generated method stub
-						
-					}
-				};
-				pause.run();*/
-				//pause the thread for 3 seconds, just to be safe
-				//mHandler.postDelayed(pause, 3000);
-				//mHandler.removeCallbacks(pause);
+				
 				/**Need to run this on UiThread because listener calls it from separate thread */
 				if (id.equals(STOP_WORKOUT)) {
 
@@ -246,7 +234,7 @@ public class Workout extends Activity implements OnClickListener, TextToSpeech.O
 /*				Log.w("Workout", "counter:  " + mCounter);
 				if (mCounter >= 3) {
 					stopVoiceRec();
-					//I don't know why this works instead of startListening, but I think it has to do with threads
+					//I don't know why this works instead of startListening, but I think it has to do with threads?
 					replies.put(TextToSpeech.Engine.KEY_PARAM_UTTERANCE_ID, SILENCE);
 					mTts.speak("", TextToSpeech.QUEUE_FLUSH, replies);
 				}*/
