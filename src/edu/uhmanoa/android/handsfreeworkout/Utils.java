@@ -10,7 +10,7 @@ import android.util.Log;
  * Made the methods static so that an instance of the class is not needed to call the methods.
  */
 public class Utils {
-
+	/* Get the average max amplitude */
 	public static int getBaseline(ArrayList<Integer> mAverage) {
 		int averageTotal = 0;
 		for (int number: mAverage) {
@@ -19,13 +19,14 @@ public class Utils {
 		Log.w("Workout", "average:  " + averageTotal/10);
 		return averageTotal/10;
 	}
+	/*Get the file path for voice recording output*/
 	//later make this a file that is private to the application
 	public static String getOutputMediaFilePath(){
 		File mediaFile = null;
 		//get the base directory where the file gets stored
 		File dir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS);
 		/* construct the file space using the specified directory and name
-		 * this is where the pictures will be stored */
+		 * this is where the file from the voice recording will be stored */
 		File mediaStorageDir = new File(dir,"HandsFreeWorkout");
 		//check to see if there is not a file at the storage directory path contained in mediaStorageDir
 		if (!mediaStorageDir.exists()) {
@@ -44,6 +45,7 @@ public class Utils {
 		return mediaFile.getAbsolutePath();
 	}
 	
+	/*Get the number of digits for a given number */
 	public static int getDigits(int number) {
 		String stringNumber = String.valueOf(number);
 		return stringNumber.length();

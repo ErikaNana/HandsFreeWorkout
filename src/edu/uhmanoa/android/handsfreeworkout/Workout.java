@@ -2,7 +2,9 @@ package edu.uhmanoa.android.handsfreeworkout;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
 
 import android.app.Activity;
 import android.content.Intent;
@@ -14,14 +16,17 @@ import android.os.Handler;
 import android.speech.RecognitionListener;
 import android.speech.RecognizerIntent;
 import android.speech.SpeechRecognizer;
+import android.speech.tts.TextToSpeech;
+import android.speech.tts.UtteranceProgressListener;
 import android.util.Log;
 import android.view.View;
 import android.view.View.OnClickListener;
 import android.widget.ArrayAdapter;
 import android.widget.Button;
 import android.widget.ListView;
+import android.widget.Toast;
 
-public class Workout extends Activity implements OnClickListener{
+public class Workout extends Activity implements OnClickListener, TextToSpeech.OnInitListener{
 
 	protected ListView wordsList;
 	protected Intent mIntent;
@@ -32,6 +37,8 @@ public class Workout extends Activity implements OnClickListener{
 	protected ArrayList<Integer> mAverage;
 	protected Button mStartButton;
 	protected Button mStopButton;
+	//so can differentiate between what needs to be said in TTS
+	protected HashMap <String, String> replies = new HashMap<String, String>();
 	
 	protected boolean mSpeechRecAlive;
 	protected boolean mFinished;
@@ -39,7 +46,10 @@ public class Workout extends Activity implements OnClickListener{
 	protected boolean mCheckBaseline;
 	protected boolean mListeningForCommands;
 	protected int mBaselineAmp;
+	protected TextToSpeech mTts;
+	protected boolean mFeedback;
 	
+	/** Keys for saving and restoring instance data */
 	protected static final String SAVED_SPEECH_REC_ALIVE_VALUE = "saved speech";
 	protected static final String SAVED_FINISHED_SPEECH_REC_VALUE = "finished speech";
 	protected static final String SAVED_DOING_SPEECH_REC_VALUE = "doing speecrech";
@@ -47,16 +57,30 @@ public class Workout extends Activity implements OnClickListener{
 	protected static final String SAVED_BASELINE_AMP_VALUE = "saved baseline";
 	protected static final String SAVED_LISTENING_FOR_COMMANDS_VALUE = "listening for commands";
 	protected static final String SAVED_AVERAGE_ARRAYLIST_VALUE = "average array list";
+	protected static final String SAVED_FEEDBACK_VALUE = "saved feedback";
+
+	/** Keys for hash table of replies */
+	protected static final String WORKOUT_ALREADY_STARTED = "workout already started";
+	protected static final String BEGIN_WORKOUT = "begin workout";
+	protected static final String STOP_WORKOUT = "workout finished";
+	protected static final String WORKOUT_ALREADY_FINISHED = "workout already finished";
+	protected static final String UPDATE_WORKOUT = "update";
+	protected static final String CREATING_BASELINE = "creating baseline";
 	
 	/** The time frequency at which check the max amplitude of the recording */
 	protected static final long UPDATE_FREQUENCY = 4000L;
-	protected static final long CHECK_FREQUENCY = 1000L; //change this to 50L after debugging
+	protected static final long CHECK_FREQUENCY = 2000L; //change this to 50L after debugging
 	protected static final long BASELINE_FREQUENCY = 1000L;
-
+	
+	/** Intent activity codes */
+	protected static final int CHECK_TTS_INSTALLATION = 1;
+	
+	
 	/**
 	 * ISSUES TO DEAL WITH STILL:
 	 * accidental loud noises
 	 * leaked services (when phone was moving around)
+	 * find a way to persist the TTS? works, but get error in LogCat
 	 */
 	
 	@Override
@@ -89,6 +113,60 @@ public class Workout extends Activity implements OnClickListener{
 			mStartButton.setText("Recognizer not present");
 		}
 		mCheckBaseline = true;
+		
+		/*initialize TTS (don't need to check if it is installed because for OS 4.1 and up
+		it is already included.  But maybe do checks here for older versions later */
+		mTts = new TextToSpeech(this,this);
+		mTts.setOnUtteranceProgressListener(new UtteranceProgressListener() {
+
+			@Override
+			public void onStart(String arg0) {
+				//don't need?	
+			}
+			
+			@Override
+			public void onError(String arg0) {
+				//don't need?
+				
+			}
+			/**need this so speech recognition doesn't pick up on the feedback */
+			@Override
+			public void onDone(String utteranceID) {
+				String id = utteranceID;
+				Log.e("Workout", "utterance:  " + utteranceID);
+
+/*				Runnable pause  = new Runnable() {
+					@Override
+					public void run() {
+						Log.w("Workout", "Pausing");
+						// TODO Auto-generated method stub
+						
+					}
+				};
+				pause.run();*/
+				//pause the thread for 3 seconds, just to be safe
+				//mHandler.postDelayed(pause, 3000);
+				//mHandler.removeCallbacks(pause);
+				/**Need to run this on UiThread because listener calls it from separate thread */
+				if (id.equals(STOP_WORKOUT)) {
+
+					runOnUiThread(new Runnable() {				
+						@Override
+						public void run() {					
+							stopWorkout();		
+						}
+					});
+				}
+				else {
+					runOnUiThread(new Runnable() {	
+						@Override
+						public void run() {	
+							startWorkout();
+						}
+					});
+				}
+			}
+		});
 	}
 	
 	/* Start voice recognition */
@@ -104,18 +182,18 @@ public class Workout extends Activity implements OnClickListener{
 			/** Methods to override android.speech */
 			@Override
 			public void onBeginningOfSpeech() {
-				Log.w("VR", "on beginning of speech");
+				Log.w("Workout", "on beginning of speech");
 				mSpeechRecAlive = true;
 			}
 
 			@Override
 			public void onBufferReceived(byte[] arg0) {
-				Log.w("VR", "buffer received");	
+				Log.w("Workout", "buffer received");	
 			}
 
 			@Override
 			public void onEndOfSpeech() {
-				Log.w("VR", "end of speech");
+				Log.w("Workout", "end of speech");
 
 			}
 
@@ -124,53 +202,53 @@ public class Workout extends Activity implements OnClickListener{
 				mSpeechRecAlive = false;	
 				switch (error) {
 					case (SpeechRecognizer.ERROR_AUDIO):{
-						Log.w("VR", "audio");
+						Log.w("Workout", "audio");
 					}
 					case (SpeechRecognizer.ERROR_CLIENT):{
-						Log.w("VR", "client");
+						Log.w("Workout", "client");
 					}
 					case (SpeechRecognizer.ERROR_INSUFFICIENT_PERMISSIONS):{
-						Log.w("VR", "insufficient permissions");
+						Log.w("Workout", "insufficient permissions");
 					}
 					case (SpeechRecognizer.ERROR_NETWORK):{
-						Log.w("VR", "network");
+						Log.w("Workout", "network");
 					}
 					case (SpeechRecognizer.ERROR_NETWORK_TIMEOUT):{
-						Log.w("VR", "network timeout");
+						Log.w("Workout", "network timeout");
 					}
 					case (SpeechRecognizer.ERROR_NO_MATCH):{
-						Log.w("VR", "no_match");
+						Log.w("Workout", "no_match");
 					}
 					case (SpeechRecognizer.ERROR_RECOGNIZER_BUSY):{
-						Log.w("VR", "recognizer busy");
+						Log.w("Workout", "recognizer busy");
 					}
 					case (SpeechRecognizer.ERROR_SERVER):{
-						Log.w("VR", "server");
+						Log.w("Workout", "server");
 					}
 					case (SpeechRecognizer.ERROR_SPEECH_TIMEOUT):{
-						Log.w("VR", "speech timeout");
+						Log.w("Workout", "speech timeout");
 					}
 				}
 			}
 			@Override
 			public void onEvent(int arg0, Bundle arg1) {
-				Log.w("VR", "on Event");
+				Log.w("Workout", "on Event");
 				
 			}
 
 			@Override
 			public void onPartialResults(Bundle arg0) {
-				Log.w("VR", "partial results");
+				Log.w("Workout", "partial results");
 			}
 
 			@Override
 			public void onReadyForSpeech(Bundle arg0) {
-				Log.w("VR", "ready for speech");	
+				Log.w("Workout", "ready for speech");	
 			}
 
 			@Override
 			public void onResults(Bundle bundle) {
-				Log.w("VR", "on Results");
+				Log.w("Workout", "on Results");
 				mSpeechRecAlive = true;	
 				mFinished = true;
 				//heard result so stop listening for words
@@ -224,7 +302,7 @@ public class Workout extends Activity implements OnClickListener{
 				mSpeechRec.destroy();
 				startVoiceRec();
 			}
-			mHandler.postDelayed(checkSpeechRec, Workout.UPDATE_FREQUENCY);
+			mHandler.postDelayed(checkSpeechRec, UPDATE_FREQUENCY);
 		}
 	};
 	
@@ -271,8 +349,6 @@ public class Workout extends Activity implements OnClickListener{
 					}
 					frequency = Workout.CHECK_FREQUENCY;
 					Log.w("Workout", "max amp:  " + maxAmp);
-					Log.w("Workout", "current digits" + digitsCurrent);
-					Log.w("Workout", "baseline digits" + digitsBaseline);
 				}
 				mHandler.postDelayed(checkMaxAmp, frequency);
 			}
@@ -283,6 +359,7 @@ public class Workout extends Activity implements OnClickListener{
 		mListeningForCommands = true;
 		//for persistence
 		mStartButton.setEnabled(false);
+		
 		 mRecorder = new MediaRecorder();
 		 mRecorder.setAudioSource(MediaRecorder.AudioSource.MIC);
 		 mRecorder.setOutputFormat(MediaRecorder.OutputFormat.THREE_GPP);
@@ -301,6 +378,7 @@ public class Workout extends Activity implements OnClickListener{
 		}
 		mRecorder.start();
 		checkMaxAmp.run();
+		
 	}
 	/* Stop listening for commands */
 	public void stopListening() {
@@ -312,13 +390,71 @@ public class Workout extends Activity implements OnClickListener{
 	}
 	/*Handle input from the speech recognizer */
 	public void handleInput(ArrayList<String> results) {
-		//convert String Array to String ArrayList to match constructor for ArrayAdapter
-	        wordsList.setAdapter(new ArrayAdapter<String>(this, android.R.layout.simple_list_item_1,
+		//use a default layout to display the words
+		mDoingSpeechRec = false;
+		mFeedback = true;
+	    wordsList.setAdapter(new ArrayAdapter<String>(this, android.R.layout.simple_list_item_1,
 	                results));
 		Log.e("Workout", "results");
-		//start listening for commands again
-		startListening();
- 
+		int word = 0;
+		if (results.contains("start")) {
+			word = 1;
+		}
+		if (results.contains("stop")) {
+			word = 2;
+		}
+		if (results.contains("update")) {
+			word = 3;
+		}
+		replyToCommands(word);
+	}
+	/** Replies to commands */
+	public void replyToCommands(int word) {
+		Log.w("Workout", "replying");
+		Log.w("Workout", "voice recording:  " + mDoingSpeechRec);
+		Log.w("Workoout", "listening:  " + mListeningForCommands);
+		Log.w("Workout", "mRecorder = " + mRecorder);
+		Log.w("Workout", "mSpeechRec = " + mSpeechRec);
+
+		switch(word) {
+			//start
+			case (1):{
+				//workout has already started
+				if (!mStartButton.isEnabled()) {
+					replies.put(TextToSpeech.Engine.KEY_PARAM_UTTERANCE_ID, WORKOUT_ALREADY_STARTED);
+					mTts.speak("workout has already started", TextToSpeech.QUEUE_FLUSH, replies);
+				}
+				else{
+					replies.put(TextToSpeech.Engine.KEY_PARAM_UTTERANCE_ID, BEGIN_WORKOUT);
+					mTts.speak("starting workout", TextToSpeech.QUEUE_FLUSH, replies);
+				}
+				break;
+			}
+			//stop
+			case (2):{
+				//workout is in progress
+				if (!mStartButton.isEnabled()) {
+					replies.put(TextToSpeech.Engine.KEY_PARAM_UTTERANCE_ID, STOP_WORKOUT);
+					mTts.speak("stopping workout", TextToSpeech.QUEUE_FLUSH, replies);
+				}
+				//in limbo
+				else{
+					replies.put(TextToSpeech.Engine.KEY_PARAM_UTTERANCE_ID, WORKOUT_ALREADY_FINISHED);
+					mTts.speak("you are already done with the workout", TextToSpeech.QUEUE_FLUSH, replies);
+				}
+				break;
+			}
+			//update
+			case (3):{
+				replies.put(TextToSpeech.Engine.KEY_PARAM_UTTERANCE_ID, UPDATE_WORKOUT);
+				mTts.speak("update", TextToSpeech.QUEUE_FLUSH, replies);
+				break;
+			}
+			//none of the commands were spoken
+			default:
+				startListening();
+		}
+		mFeedback = false;
 	}
 	/**Handle button clicks */
 	@Override
@@ -326,33 +462,51 @@ public class Workout extends Activity implements OnClickListener{
 		switch (view.getId()){
 			case(R.id.speakButton):{
 				Log.w("Workout", "speak button is pressed");
-				//check for accidental clicks
-				if (!mListeningForCommands) {
-					startListening();
-					mStartButton.setEnabled(false);
+				//inform user of baseline reading
+				if (mCheckBaseline) {
+					replies.put(TextToSpeech.Engine.KEY_PARAM_UTTERANCE_ID, CREATING_BASELINE);
+					mTts.speak("creating baseline", TextToSpeech.QUEUE_FLUSH, replies);				
+				}
+				else {
+					startWorkout();	
 				}
 				break;
 			}
 			case (R.id.stopButton):{
 				Log.w("Workout", "stop button is pressed");
-				//check for accidental clicks
-				if (mListeningForCommands) {
-					stopListening();
-					if (mDoingSpeechRec) {
-						stopVoiceRec();
-					}
-					//reset everything
-					mAverage.clear();
-					mStartButton.setEnabled(true);
-					mCheckBaseline = true;
-				}
+				stopWorkout();
 				break;
 			}
 		}
 		
 	}
-	
-
+	public void startWorkout() {
+		//check for accidental clicks
+		Log.w("Workout", "starting workout");
+		if (!mListeningForCommands) {
+			startListening();
+			Log.w("Workout", "listening to commands");
+			mStartButton.setEnabled(false);
+		}
+	}
+	public void stopWorkout () {
+		//check for accidental clicks
+		Log.w("Workout", "stopping workout");
+		if (!mStartButton.isEnabled()) {
+			Log.w("Workout", "stop listening to commands");
+			//only do these if they are not null
+			if (mRecorder != null) {
+				stopListening();
+				if (mDoingSpeechRec) {
+					stopVoiceRec();
+				}
+			}
+			//reset everything
+			mAverage.clear();
+			mStartButton.setEnabled(true);
+			
+		}
+	}
 	/** Called when activity is interrupted, like orientation change */
 	protected void onPause() {
 		Log.w("Workout", "activity interrupted");
@@ -373,6 +527,7 @@ public class Workout extends Activity implements OnClickListener{
 		Log.w("Workout", "(on pause) baseline:  " + mCheckBaseline);
 		super.onPause();
 	}
+	
 	/** Called when user comes back to the activity */
 	protected void onResume() {
 		Log.w("Workout", "on resume");
@@ -387,9 +542,7 @@ public class Workout extends Activity implements OnClickListener{
 		}
 		super.onResume();
 	}
-	/**
-	 * Save the instance data
-	 */
+	/** Save the instance data */
 	@Override
 	protected void onSaveInstanceState(Bundle outState) {
 		//store the current values in outState
@@ -402,15 +555,14 @@ public class Workout extends Activity implements OnClickListener{
 		outState.putBoolean(SAVED_LISTENING_FOR_COMMANDS_VALUE, mListeningForCommands);
 		outState.putInt(SAVED_BASELINE_AMP_VALUE, mBaselineAmp);
 		outState.putIntegerArrayList(SAVED_AVERAGE_ARRAYLIST_VALUE, mAverage);
+		outState.putBoolean(SAVED_FEEDBACK_VALUE, mFeedback);
 		Log.w("Workout","(save) mCheckBaseLine:  " + mCheckBaseline);
 		Log.w("Workout", "(save) doing speechRec:  " + mDoingSpeechRec);
 		Log.w("Workout", "(save) listening for commands:  " + mListeningForCommands);
 		super.onSaveInstanceState(outState);
 	}
 	
-	/**
-	 * Restore the instance data
-	 */
+	/** Restore the instance data*/
 	@Override
 	protected void onRestoreInstanceState(Bundle savedInstanceState) {
 		Log.w("Workout", "restoring instance state");
@@ -425,8 +577,23 @@ public class Workout extends Activity implements OnClickListener{
 		mListeningForCommands = savedInstanceState.getBoolean(SAVED_LISTENING_FOR_COMMANDS_VALUE);
 		mBaselineAmp = savedInstanceState.getInt(SAVED_BASELINE_AMP_VALUE);
 		mAverage = savedInstanceState.getIntegerArrayList(SAVED_AVERAGE_ARRAYLIST_VALUE);
+		mFeedback = savedInstanceState.getBoolean(SAVED_FEEDBACK_VALUE);
 		Log.w("Workout","(restore) mCheckBaseLine:  " + mCheckBaseline);
 		Log.w("Workout", "(restore) doing speechRec:  " + mDoingSpeechRec);
 		Log.w("Workout", "(restore) listening for commands:  " + mListeningForCommands);
 	}
+	/** Called so signal completion of TTS initialization.  Handle the check of TTS installation here.*/
+	@Override
+	public void onInit(int status) {
+		if (status == TextToSpeech.SUCCESS) {
+			int result = mTts.setLanguage(Locale.US);
+			//error checking
+			if (result == TextToSpeech.LANG_MISSING_DATA || result == TextToSpeech.LANG_NOT_SUPPORTED) {
+				String errorMessage = "The language is not supported, or the language data is missing.  Please check your installation.";
+				Toast.makeText(getBaseContext(), errorMessage, Toast.LENGTH_SHORT).show();
+			}
+		}
+	}
+
+
 }
