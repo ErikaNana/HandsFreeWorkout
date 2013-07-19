@@ -47,7 +47,7 @@ public class Workout extends Activity implements OnClickListener, TextToSpeech.O
 	protected boolean mListeningForCommands;
 	protected int mBaselineAmp;
 	protected TextToSpeech mTts;
-	protected boolean mFeedback;
+	protected int mCounter;
 	
 	/** Keys for saving and restoring instance data */
 	protected static final String SAVED_SPEECH_REC_ALIVE_VALUE = "saved speech";
@@ -57,7 +57,6 @@ public class Workout extends Activity implements OnClickListener, TextToSpeech.O
 	protected static final String SAVED_BASELINE_AMP_VALUE = "saved baseline";
 	protected static final String SAVED_LISTENING_FOR_COMMANDS_VALUE = "listening for commands";
 	protected static final String SAVED_AVERAGE_ARRAYLIST_VALUE = "average array list";
-	protected static final String SAVED_FEEDBACK_VALUE = "saved feedback";
 
 	/** Keys for hash table of replies */
 	protected static final String WORKOUT_ALREADY_STARTED = "workout already started";
@@ -66,21 +65,20 @@ public class Workout extends Activity implements OnClickListener, TextToSpeech.O
 	protected static final String WORKOUT_ALREADY_FINISHED = "workout already finished";
 	protected static final String UPDATE_WORKOUT = "update";
 	protected static final String CREATING_BASELINE = "creating baseline";
+	protected static final String FINISHED_BASELINE = "finished baseline";
+	protected static final String SILENCE = "silence";
 	
 	/** The time frequency at which check the max amplitude of the recording */
 	protected static final long UPDATE_FREQUENCY = 4000L;
 	protected static final long CHECK_FREQUENCY = 2000L; //change this to 50L after debugging
 	protected static final long BASELINE_FREQUENCY = 1000L;
-	
-	/** Intent activity codes */
-	protected static final int CHECK_TTS_INSTALLATION = 1;
-	
-	
+		
 	/**
 	 * ISSUES TO DEAL WITH STILL:
 	 * accidental loud noises
 	 * leaked services (when phone was moving around)
-	 * find a way to persist the TTS? works, but get error in LogCat
+	 * find a way to persist the TTS? app still works, but get error in LogCat
+	 * have it so only check for speech 3 times (silence way only works once on fresh install)
 	 */
 	
 	@Override
@@ -161,9 +159,10 @@ public class Workout extends Activity implements OnClickListener, TextToSpeech.O
 					runOnUiThread(new Runnable() {	
 						@Override
 						public void run() {	
-							startWorkout();
+							startListening();
 						}
 					});
+					
 				}
 			}
 		});
@@ -243,9 +242,17 @@ public class Workout extends Activity implements OnClickListener, TextToSpeech.O
 
 			@Override
 			public void onReadyForSpeech(Bundle arg0) {
-				Log.w("Workout", "ready for speech");	
-			}
+				Log.w("Workout", "ready for speech");
+/*				Log.w("Workout", "counter:  " + mCounter);
+				if (mCounter >= 3) {
+					stopVoiceRec();
+					//I don't know why this works instead of startListening, but I think it has to do with threads
+					replies.put(TextToSpeech.Engine.KEY_PARAM_UTTERANCE_ID, SILENCE);
+					mTts.speak("", TextToSpeech.QUEUE_FLUSH, replies);
+				}*/
 
+			}
+			
 			@Override
 			public void onResults(Bundle bundle) {
 				Log.w("Workout", "on Results");
@@ -281,6 +288,7 @@ public class Workout extends Activity implements OnClickListener, TextToSpeech.O
 		mHandler.removeCallbacks(checkSpeechRec);
 		mSpeechRec.destroy();
 		mSpeechRec = null;
+		mCounter = 0;
 	}
 	/** A Handler takes in a Runnable object and schedules its execution; it places the
 	 * runnable process as a job in an execution queue to be run after a specified amount
@@ -298,10 +306,11 @@ public class Workout extends Activity implements OnClickListener, TextToSpeech.O
 				mSpeechRecAlive = false;
 			}
 			
-			if (!mSpeechRecAlive) {
+			if (!mSpeechRecAlive) {				
 				mSpeechRec.destroy();
 				startVoiceRec();
 			}
+			mCounter +=1;
 			mHandler.postDelayed(checkSpeechRec, UPDATE_FREQUENCY);
 		}
 	};
@@ -330,6 +339,9 @@ public class Workout extends Activity implements OnClickListener, TextToSpeech.O
 					if(mAverage.size() == 10) {
 						//set the baseline max amp
 						mBaselineAmp = Utils.getBaseline(mAverage);
+						stopListening();
+						replies.put(TextToSpeech.Engine.KEY_PARAM_UTTERANCE_ID, FINISHED_BASELINE);
+						mTts.speak("finished baseline recording", TextToSpeech.QUEUE_FLUSH, replies);
 						mCheckBaseline = false;
 					}
 				}
@@ -365,10 +377,13 @@ public class Workout extends Activity implements OnClickListener, TextToSpeech.O
 		 mRecorder.setOutputFormat(MediaRecorder.OutputFormat.THREE_GPP);
 		 String name = Utils.getOutputMediaFilePath();
 		 mRecorder.setOutputFile(name);
-		 mRecorder.setAudioEncoder(MediaRecorder.AudioEncoder.DEFAULT);
+		 mRecorder.setAudioEncoder(MediaRecorder.AudioEncoder.AMR_NB);
 
 		 try {
 			mRecorder.prepare();
+			mRecorder.start();
+			checkMaxAmp.run();
+
 		} catch (IllegalStateException e) {
 			Log.w("WorkOut", e.getMessage());
 			e.printStackTrace();
@@ -376,23 +391,21 @@ public class Workout extends Activity implements OnClickListener, TextToSpeech.O
 			Log.w("Workout", e.getMessage());
 			e.printStackTrace();
 		}
-		mRecorder.start();
-		checkMaxAmp.run();
-		
 	}
 	/* Stop listening for commands */
 	public void stopListening() {
 		mListeningForCommands = false;
 		mHandler.removeCallbacks(checkMaxAmp);
 		mRecorder.stop();
+		mRecorder.reset();
 		mRecorder.release();
 		mRecorder = null;
+
 	}
 	/*Handle input from the speech recognizer */
 	public void handleInput(ArrayList<String> results) {
 		//use a default layout to display the words
 		mDoingSpeechRec = false;
-		mFeedback = true;
 	    wordsList.setAdapter(new ArrayAdapter<String>(this, android.R.layout.simple_list_item_1,
 	                results));
 		Log.e("Workout", "results");
@@ -412,7 +425,7 @@ public class Workout extends Activity implements OnClickListener, TextToSpeech.O
 	public void replyToCommands(int word) {
 		Log.w("Workout", "replying");
 		Log.w("Workout", "voice recording:  " + mDoingSpeechRec);
-		Log.w("Workoout", "listening:  " + mListeningForCommands);
+		Log.w("Workout", "listening:  " + mListeningForCommands);
 		Log.w("Workout", "mRecorder = " + mRecorder);
 		Log.w("Workout", "mSpeechRec = " + mSpeechRec);
 
@@ -454,7 +467,6 @@ public class Workout extends Activity implements OnClickListener, TextToSpeech.O
 			default:
 				startListening();
 		}
-		mFeedback = false;
 	}
 	/**Handle button clicks */
 	@Override
@@ -508,6 +520,7 @@ public class Workout extends Activity implements OnClickListener, TextToSpeech.O
 		}
 	}
 	/** Called when activity is interrupted, like orientation change */
+	@Override
 	protected void onPause() {
 		Log.w("Workout", "activity interrupted");
 		Log.w("Workout", "(on pause) listening for commands:  " + mListeningForCommands);
@@ -529,6 +542,7 @@ public class Workout extends Activity implements OnClickListener, TextToSpeech.O
 	}
 	
 	/** Called when user comes back to the activity */
+	@Override
 	protected void onResume() {
 		Log.w("Workout", "on resume");
 		//so that can resume, but also considering first run of app
@@ -555,7 +569,6 @@ public class Workout extends Activity implements OnClickListener, TextToSpeech.O
 		outState.putBoolean(SAVED_LISTENING_FOR_COMMANDS_VALUE, mListeningForCommands);
 		outState.putInt(SAVED_BASELINE_AMP_VALUE, mBaselineAmp);
 		outState.putIntegerArrayList(SAVED_AVERAGE_ARRAYLIST_VALUE, mAverage);
-		outState.putBoolean(SAVED_FEEDBACK_VALUE, mFeedback);
 		Log.w("Workout","(save) mCheckBaseLine:  " + mCheckBaseline);
 		Log.w("Workout", "(save) doing speechRec:  " + mDoingSpeechRec);
 		Log.w("Workout", "(save) listening for commands:  " + mListeningForCommands);
@@ -577,7 +590,6 @@ public class Workout extends Activity implements OnClickListener, TextToSpeech.O
 		mListeningForCommands = savedInstanceState.getBoolean(SAVED_LISTENING_FOR_COMMANDS_VALUE);
 		mBaselineAmp = savedInstanceState.getInt(SAVED_BASELINE_AMP_VALUE);
 		mAverage = savedInstanceState.getIntegerArrayList(SAVED_AVERAGE_ARRAYLIST_VALUE);
-		mFeedback = savedInstanceState.getBoolean(SAVED_FEEDBACK_VALUE);
 		Log.w("Workout","(restore) mCheckBaseLine:  " + mCheckBaseline);
 		Log.w("Workout", "(restore) doing speechRec:  " + mDoingSpeechRec);
 		Log.w("Workout", "(restore) listening for commands:  " + mListeningForCommands);
