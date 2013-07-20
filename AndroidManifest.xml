@@ -24,7 +24,7 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
-        <service android:enabled="true" android:name="edu.uhmanoa.android.handsfreeworkout.VoiceRecognizerService" />"
+        <service android:enabled="true" android:name="edu.uhmanoa.android.handsfreeworkout.FeedbackService" />"
     </application>
 
 </manifest>

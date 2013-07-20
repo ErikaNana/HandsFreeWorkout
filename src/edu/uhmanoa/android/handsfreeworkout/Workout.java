@@ -2,12 +2,13 @@ package edu.uhmanoa.android.handsfreeworkout;
 
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Locale;
 
 import android.app.Activity;
+import android.content.BroadcastReceiver;
+import android.content.Context;
 import android.content.Intent;
+import android.content.IntentFilter;
 import android.content.pm.PackageManager;
 import android.content.pm.ResolveInfo;
 import android.media.MediaRecorder;
@@ -16,17 +17,14 @@ import android.os.Handler;
 import android.speech.RecognitionListener;
 import android.speech.RecognizerIntent;
 import android.speech.SpeechRecognizer;
-import android.speech.tts.TextToSpeech;
-import android.speech.tts.UtteranceProgressListener;
 import android.util.Log;
 import android.view.View;
 import android.view.View.OnClickListener;
 import android.widget.ArrayAdapter;
 import android.widget.Button;
 import android.widget.ListView;
-import android.widget.Toast;
 
-public class Workout extends Activity implements OnClickListener, TextToSpeech.OnInitListener{
+public class Workout extends Activity implements OnClickListener{
 
 	protected ListView wordsList;
 	protected Intent mIntent;
@@ -37,8 +35,6 @@ public class Workout extends Activity implements OnClickListener, TextToSpeech.O
 	protected ArrayList<Integer> mAverage;
 	protected Button mStartButton;
 	protected Button mStopButton;
-	//so can differentiate between what needs to be said in TTS
-	protected HashMap <String, String> replies = new HashMap<String, String>();
 	
 	protected boolean mSpeechRecAlive;
 	protected boolean mFinished;
@@ -46,8 +42,8 @@ public class Workout extends Activity implements OnClickListener, TextToSpeech.O
 	protected boolean mCheckBaseline;
 	protected boolean mListeningForCommands;
 	protected int mBaselineAmp;
-	protected TextToSpeech mTts;
 	protected int mCounter;
+	protected FinishedSpeakingReceiver mReceiver;
 	
 	/** Keys for saving and restoring instance data */
 	protected static final String SAVED_SPEECH_REC_ALIVE_VALUE = "saved speech";
@@ -57,28 +53,31 @@ public class Workout extends Activity implements OnClickListener, TextToSpeech.O
 	protected static final String SAVED_BASELINE_AMP_VALUE = "saved baseline";
 	protected static final String SAVED_LISTENING_FOR_COMMANDS_VALUE = "listening for commands";
 	protected static final String SAVED_AVERAGE_ARRAYLIST_VALUE = "average array list";
-
-	/** Keys for hash table of replies */
-	protected static final String WORKOUT_ALREADY_STARTED = "workout already started";
-	protected static final String BEGIN_WORKOUT = "begin workout";
-	protected static final String STOP_WORKOUT = "workout finished";
-	protected static final String WORKOUT_ALREADY_FINISHED = "workout already finished";
-	protected static final String UPDATE_WORKOUT = "update";
-	protected static final String CREATING_BASELINE = "creating baseline";
-	protected static final String FINISHED_BASELINE = "finished baseline";
-	protected static final String SILENCE = "silence";
 	
 	/** The time frequency at which check the max amplitude of the recording */
 	protected static final long UPDATE_FREQUENCY = 4000L;
 	protected static final long CHECK_FREQUENCY = 2000L; //change this to 50L after debugging
 	protected static final long BASELINE_FREQUENCY = 1000L;
-		
+	
+	/** Name of the string that identifies what the response should be */
+	protected static final String RESPONSE_STRING = "response string";
+	
+	/** Codes for the response that feedback should say */
+	protected static final int WORKOUT_ALREADY_STARTED = 1;
+	protected static final int BEGIN_WORKOUT = 2;
+	protected static final int STOP_WORKOUT = 3;
+	protected static final int WORKOUT_ALREADY_FINISHED = 4;
+	protected static final int UPDATE_WORKOUT = 5;
+	protected static final int CREATING_BASELINE = 6;
+	protected static final int FINISHED_BASELINE = 7;
+	protected static final int SILENCE = 8;
 	/**
 	 * ISSUES TO DEAL WITH STILL:
 	 * accidental loud noises
 	 * leaked services (when phone was moving around)
 	 * find a way to persist the TTS? app still works, but get error in LogCat
 	 * have it so only check for speech 3 times (silence way only works once on fresh install)
+	 * maybe run the voice feedback as a service
 	 */
 	
 	@Override
@@ -111,49 +110,6 @@ public class Workout extends Activity implements OnClickListener, TextToSpeech.O
 			mStartButton.setText("Recognizer not present");
 		}
 		mCheckBaseline = true;
-		
-		/*initialize TTS (don't need to check if it is installed because for OS 4.1 and up
-		it is already included.  But maybe do checks here for older versions later */
-		mTts = new TextToSpeech(this,this);
-		mTts.setOnUtteranceProgressListener(new UtteranceProgressListener() {
-
-			@Override
-			public void onStart(String arg0) {
-				//don't need?	
-			}
-			
-			@Override
-			public void onError(String arg0) {
-				//don't need?
-				
-			}
-			/**need this so speech recognition doesn't pick up on the feedback */
-			@Override
-			public void onDone(String utteranceID) {
-				String id = utteranceID;
-				Log.e("Workout", "utterance:  " + utteranceID);
-				
-				/**Need to run this on UiThread because listener calls it from separate thread */
-				if (id.equals(STOP_WORKOUT)) {
-
-					runOnUiThread(new Runnable() {				
-						@Override
-						public void run() {					
-							stopWorkout();		
-						}
-					});
-				}
-				else {
-					runOnUiThread(new Runnable() {	
-						@Override
-						public void run() {	
-							startListening();
-						}
-					});
-					
-				}
-			}
-		});
 	}
 	
 	/* Start voice recognition */
@@ -238,7 +194,9 @@ public class Workout extends Activity implements OnClickListener, TextToSpeech.O
 					replies.put(TextToSpeech.Engine.KEY_PARAM_UTTERANCE_ID, SILENCE);
 					mTts.speak("", TextToSpeech.QUEUE_FLUSH, replies);
 				}*/
-
+/*				if (mCounter >= 3) {
+					startResponseService(SILENCE);					
+				}*/
 			}
 			
 			@Override
@@ -328,8 +286,9 @@ public class Workout extends Activity implements OnClickListener, TextToSpeech.O
 						//set the baseline max amp
 						mBaselineAmp = Utils.getBaseline(mAverage);
 						stopListening();
-						replies.put(TextToSpeech.Engine.KEY_PARAM_UTTERANCE_ID, FINISHED_BASELINE);
-						mTts.speak("finished baseline recording", TextToSpeech.QUEUE_FLUSH, replies);
+/*						replies.put(TextToSpeech.Engine.KEY_PARAM_UTTERANCE_ID, FINISHED_BASELINE);
+						mTts.speak("finished baseline recording", TextToSpeech.QUEUE_FLUSH, replies);*/
+						startResponseService(FINISHED_BASELINE);
 						mCheckBaseline = false;
 					}
 				}
@@ -422,12 +381,14 @@ public class Workout extends Activity implements OnClickListener, TextToSpeech.O
 			case (1):{
 				//workout has already started
 				if (!mStartButton.isEnabled()) {
-					replies.put(TextToSpeech.Engine.KEY_PARAM_UTTERANCE_ID, WORKOUT_ALREADY_STARTED);
-					mTts.speak("workout has already started", TextToSpeech.QUEUE_FLUSH, replies);
+/*					replies.put(TextToSpeech.Engine.KEY_PARAM_UTTERANCE_ID, WORKOUT_ALREADY_STARTED);
+					mTts.speak("workout has already started", TextToSpeech.QUEUE_FLUSH, replies);*/
+					startResponseService(WORKOUT_ALREADY_STARTED);
 				}
 				else{
-					replies.put(TextToSpeech.Engine.KEY_PARAM_UTTERANCE_ID, BEGIN_WORKOUT);
-					mTts.speak("starting workout", TextToSpeech.QUEUE_FLUSH, replies);
+/*					replies.put(TextToSpeech.Engine.KEY_PARAM_UTTERANCE_ID, BEGIN_WORKOUT);
+					mTts.speak("starting workout", TextToSpeech.QUEUE_FLUSH, replies);*/
+					startResponseService(BEGIN_WORKOUT);
 				}
 				break;
 			}
@@ -435,20 +396,23 @@ public class Workout extends Activity implements OnClickListener, TextToSpeech.O
 			case (2):{
 				//workout is in progress
 				if (!mStartButton.isEnabled()) {
-					replies.put(TextToSpeech.Engine.KEY_PARAM_UTTERANCE_ID, STOP_WORKOUT);
-					mTts.speak("stopping workout", TextToSpeech.QUEUE_FLUSH, replies);
+/*					replies.put(TextToSpeech.Engine.KEY_PARAM_UTTERANCE_ID, STOP_WORKOUT);
+					mTts.speak("stopping workout", TextToSpeech.QUEUE_FLUSH, replies);*/
+					startResponseService(STOP_WORKOUT);
 				}
 				//in limbo
 				else{
-					replies.put(TextToSpeech.Engine.KEY_PARAM_UTTERANCE_ID, WORKOUT_ALREADY_FINISHED);
-					mTts.speak("you are already done with the workout", TextToSpeech.QUEUE_FLUSH, replies);
+/*					replies.put(TextToSpeech.Engine.KEY_PARAM_UTTERANCE_ID, WORKOUT_ALREADY_FINISHED);
+					mTts.speak("you are already done with the workout", TextToSpeech.QUEUE_FLUSH, replies);*/
+					startResponseService(WORKOUT_ALREADY_FINISHED);
 				}
 				break;
 			}
 			//update
 			case (3):{
-				replies.put(TextToSpeech.Engine.KEY_PARAM_UTTERANCE_ID, UPDATE_WORKOUT);
-				mTts.speak("update", TextToSpeech.QUEUE_FLUSH, replies);
+/*				replies.put(TextToSpeech.Engine.KEY_PARAM_UTTERANCE_ID, UPDATE_WORKOUT);
+				mTts.speak("update", TextToSpeech.QUEUE_FLUSH, replies);*/
+				startResponseService(UPDATE_WORKOUT);
 				break;
 			}
 			//none of the commands were spoken
@@ -464,8 +428,9 @@ public class Workout extends Activity implements OnClickListener, TextToSpeech.O
 				Log.w("Workout", "speak button is pressed");
 				//inform user of baseline reading
 				if (mCheckBaseline) {
-					replies.put(TextToSpeech.Engine.KEY_PARAM_UTTERANCE_ID, CREATING_BASELINE);
-					mTts.speak("creating baseline", TextToSpeech.QUEUE_FLUSH, replies);				
+/*					replies.put(TextToSpeech.Engine.KEY_PARAM_UTTERANCE_ID, CREATING_BASELINE);
+					mTts.speak("creating baseline", TextToSpeech.QUEUE_FLUSH, replies);	*/
+					startResponseService(CREATING_BASELINE);
 				}
 				else {
 					startWorkout();	
@@ -488,6 +453,7 @@ public class Workout extends Activity implements OnClickListener, TextToSpeech.O
 			Log.w("Workout", "listening to commands");
 			mStartButton.setEnabled(false);
 		}
+		stopService(getIntent());
 	}
 	public void stopWorkout () {
 		//check for accidental clicks
@@ -525,6 +491,9 @@ public class Workout extends Activity implements OnClickListener, TextToSpeech.O
 			mSpeechRec.destroy();
 			mSpeechRec = null;
 		}
+		//unregister the receiver
+		this.unregisterReceiver(mReceiver);
+		
 		Log.w("Workout", "(on pause) baseline:  " + mCheckBaseline);
 		super.onPause();
 	}
@@ -542,6 +511,17 @@ public class Workout extends Activity implements OnClickListener, TextToSpeech.O
 			Log.w("Workout", "resuming speech recognition");
 			startVoiceRec();
 		}
+		
+		//create IntentFilter to match with FINISHED_SPEAKING action
+		IntentFilter intentFilter = new IntentFilter(FinishedSpeakingReceiver.FINISHED_SPEAKING);
+		//broadcasting an Intent with CATEGORY_DEFAULT, so add this category
+		intentFilter.addCategory(Intent.CATEGORY_DEFAULT);
+		//initialize the receiver
+		mReceiver = new FinishedSpeakingReceiver();
+		/* Register a Broadcast Receiver to be run in the main activity thread
+		 * The receiver will be called with any broadcast Intent that matches filter
+		 * in the main application thread*/
+		this.registerReceiver(mReceiver, intentFilter);
 		super.onResume();
 	}
 	/** Save the instance data */
@@ -582,18 +562,33 @@ public class Workout extends Activity implements OnClickListener, TextToSpeech.O
 		Log.w("Workout", "(restore) doing speechRec:  " + mDoingSpeechRec);
 		Log.w("Workout", "(restore) listening for commands:  " + mListeningForCommands);
 	}
-	/** Called so signal completion of TTS initialization.  Handle the check of TTS installation here.*/
-	@Override
-	public void onInit(int status) {
-		if (status == TextToSpeech.SUCCESS) {
-			int result = mTts.setLanguage(Locale.US);
-			//error checking
-			if (result == TextToSpeech.LANG_MISSING_DATA || result == TextToSpeech.LANG_NOT_SUPPORTED) {
-				String errorMessage = "The language is not supported, or the language data is missing.  Please check your installation.";
-				Toast.makeText(getBaseContext(), errorMessage, Toast.LENGTH_SHORT).show();
+
+	
+	/**Creates an intent with the specified extra and starts the feedback service */
+	public void startResponseService(int response) {
+		Intent intent = new Intent(this, FeedbackService.class);
+		intent.putExtra(RESPONSE_STRING, response);
+		this.startService(intent);
+	}
+	
+	/** Broadcast Receiver for FeedbackService */
+	public class FinishedSpeakingReceiver extends BroadcastReceiver {
+		public static final String FINISHED_SPEAKING = "edu.uhmanoa.android.handsfreeworkout.MESSAGE_PROCESSED";
+		@Override
+		public void onReceive(Context context, Intent intent) {
+			Log.w("Workout", "broadcast received");
+			// if the Intent's action matches FINISHED_SPEAKING
+			if (intent.getAction().equals(FINISHED_SPEAKING)) {
+				String action = intent.getStringExtra(FeedbackService.START_STOP);
+				Log.w("Workout", "action:  " + action);
+				if (action.equals(FeedbackService.START)) {
+					startListening();
+				}
+				if(action.equals(FeedbackService.STOP)) {
+					stopWorkout();
+				}
 			}
 		}
+
 	}
-
-
 }
