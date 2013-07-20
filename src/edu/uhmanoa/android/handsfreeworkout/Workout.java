@@ -74,10 +74,6 @@ public class Workout extends Activity implements OnClickListener{
 	/**
 	 * ISSUES TO DEAL WITH STILL:
 	 * accidental loud noises
-	 * leaked services (when phone was moving around)
-	 * find a way to persist the TTS? app still works, but get error in LogCat
-	 * have it so only check for speech 3 times (silence way only works once on fresh install)
-	 * maybe run the voice feedback as a service
 	 */
 	
 	@Override
@@ -187,16 +183,11 @@ public class Workout extends Activity implements OnClickListener{
 			@Override
 			public void onReadyForSpeech(Bundle arg0) {
 				Log.w("Workout", "ready for speech");
-/*				Log.w("Workout", "counter:  " + mCounter);
+				Log.w("Workout", "counter:  " + mCounter);
 				if (mCounter >= 3) {
 					stopVoiceRec();
-					//I don't know why this works instead of startListening, but I think it has to do with threads?
-					replies.put(TextToSpeech.Engine.KEY_PARAM_UTTERANCE_ID, SILENCE);
-					mTts.speak("", TextToSpeech.QUEUE_FLUSH, replies);
-				}*/
-/*				if (mCounter >= 3) {
 					startResponseService(SILENCE);					
-				}*/
+				}
 			}
 			
 			@Override
