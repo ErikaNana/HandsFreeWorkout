@@ -21,7 +21,7 @@ public class FeedbackService extends IntentService implements TextToSpeech.OnIni
 	
 	/** Keys for hash table of replies */
 	protected static final String WORKOUT_ALREADY_STARTED = "workout already started";
-	protected static final String BEGIN_WORKOUT = "begin workout";
+	protected static final String RESUME_WORKOUT = "resume workout";
 	protected static final String STOP_WORKOUT = "workout finished";
 	protected static final String WORKOUT_ALREADY_FINISHED = "workout already finished";
 	protected static final String UPDATE_WORKOUT = "update";
@@ -94,9 +94,9 @@ public class FeedbackService extends IntentService implements TextToSpeech.OnIni
 			mTts.speak("workout has already started", TextToSpeech.QUEUE_FLUSH, mReplies);
 			break;
 		}
-		case Workout.BEGIN_WORKOUT:{
-			mReplies.put(TextToSpeech.Engine.KEY_PARAM_UTTERANCE_ID, BEGIN_WORKOUT);
-			mTts.speak("starting workout", TextToSpeech.QUEUE_FLUSH, mReplies);
+		case Workout.RESUME_WORKOUT:{
+			mReplies.put(TextToSpeech.Engine.KEY_PARAM_UTTERANCE_ID, RESUME_WORKOUT);
+			mTts.speak("continuing workout", TextToSpeech.QUEUE_FLUSH, mReplies);
 			break;
 		}
 		case Workout.STOP_WORKOUT:{
@@ -117,14 +117,13 @@ public class FeedbackService extends IntentService implements TextToSpeech.OnIni
 		}
 		case Workout.CREATING_BASELINE:{
 			Log.w("FeedbackService", "creating baseline");
-			Log.w("FeedbackService", "mSpeech" + mTts);
 			mReplies.put(TextToSpeech.Engine.KEY_PARAM_UTTERANCE_ID, CREATING_BASELINE);
 			mTts.speak("creating baseline", TextToSpeech.QUEUE_FLUSH, mReplies);	
 			break;
 		}
 		case Workout.FINISHED_BASELINE:{
 			mReplies.put(TextToSpeech.Engine.KEY_PARAM_UTTERANCE_ID, FINISHED_BASELINE);
-			mTts.speak("finished baseline recording", TextToSpeech.QUEUE_FLUSH, mReplies);	
+			mTts.speak("finished baseline recording.  starting workout.", TextToSpeech.QUEUE_FLUSH, mReplies);	
 			break;
 		}
 		case Workout.SILENCE:{

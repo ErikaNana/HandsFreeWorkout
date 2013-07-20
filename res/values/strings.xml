@@ -8,5 +8,6 @@
     <string name="startButton_text">Start Listening</string>
     <string name="stopButton_text">Stop Listening</string>
     <string name="mainLayout_text">VoiceRecognition Demo!</string>
+    <string name="pauseButton_text">Pause</string>
 
 </resources>

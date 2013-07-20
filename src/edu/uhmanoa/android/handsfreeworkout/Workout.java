@@ -14,6 +14,7 @@ import android.content.pm.ResolveInfo;
 import android.media.MediaRecorder;
 import android.os.Bundle;
 import android.os.Handler;
+import android.os.SystemClock;
 import android.speech.RecognitionListener;
 import android.speech.RecognizerIntent;
 import android.speech.SpeechRecognizer;
@@ -22,6 +23,7 @@ import android.view.View;
 import android.view.View.OnClickListener;
 import android.widget.ArrayAdapter;
 import android.widget.Button;
+import android.widget.Chronometer;
 import android.widget.ListView;
 
 public class Workout extends Activity implements OnClickListener{
@@ -35,6 +37,8 @@ public class Workout extends Activity implements OnClickListener{
 	protected ArrayList<Integer> mAverage;
 	protected Button mStartButton;
 	protected Button mStopButton;
+	protected Button mPauseButton;
+	protected Chronometer mTimer;
 	
 	protected boolean mSpeechRecAlive;
 	protected boolean mFinished;
@@ -43,6 +47,7 @@ public class Workout extends Activity implements OnClickListener{
 	protected boolean mListeningForCommands;
 	protected int mBaselineAmp;
 	protected int mCounter;
+	protected boolean mPause;
 	protected FinishedSpeakingReceiver mReceiver;
 	
 	/** Keys for saving and restoring instance data */
@@ -64,17 +69,22 @@ public class Workout extends Activity implements OnClickListener{
 	
 	/** Codes for the response that feedback should say */
 	protected static final int WORKOUT_ALREADY_STARTED = 1;
-	protected static final int BEGIN_WORKOUT = 2;
-	protected static final int STOP_WORKOUT = 3;
-	protected static final int WORKOUT_ALREADY_FINISHED = 4;
-	protected static final int UPDATE_WORKOUT = 5;
-	protected static final int CREATING_BASELINE = 6;
-	protected static final int FINISHED_BASELINE = 7;
+	protected static final int STOP_WORKOUT = 2;
+	protected static final int WORKOUT_ALREADY_FINISHED = 3;
+	protected static final int UPDATE_WORKOUT = 4;
+	protected static final int CREATING_BASELINE = 5;
+	protected static final int FINISHED_BASELINE = 6;
+	protected static final int RESUME_WORKOUT = 7;
 	protected static final int SILENCE = 8;
+	
+	
 	/**
 	 * ISSUES TO DEAL WITH STILL:
 	 * accidental loud noises
+	 * start up error with TTS (creating baseline gets cutoff and repeated)
+	 * pause state
 	 */
+	
 	
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
@@ -86,6 +96,8 @@ public class Workout extends Activity implements OnClickListener{
 		mStartButton.setOnClickListener(this);
 		mStopButton = (Button) findViewById(R.id.stopButton);
 		mStopButton.setOnClickListener(this);
+		mPauseButton = (Button) findViewById(R.id.pauseButton);
+		mPauseButton.setOnClickListener(this);
 		wordsList = (ListView) findViewById(R.id.list);
 		mHandler = new Handler();
 		mSpeechRecAlive = false;
@@ -110,7 +122,6 @@ public class Workout extends Activity implements OnClickListener{
 	
 	/* Start voice recognition */
 	public void startVoiceRec() {
-		//flag that we're doing speech recognition
 		mDoingSpeechRec = true;
 		//for persistence
 		mStartButton.setEnabled(false);
@@ -212,8 +223,6 @@ public class Workout extends Activity implements OnClickListener{
 		mIntent = new Intent (RecognizerIntent.ACTION_RECOGNIZE_SPEECH);
 		//this extra is required
 		mIntent.putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM);
-		//so can use as a service
-		mIntent.putExtra(RecognizerIntent.EXTRA_CALLING_PACKAGE, this.getPackageName());
 		// text prompt to show to the user when asking them to speak. 
 		mIntent.putExtra(RecognizerIntent.EXTRA_PROMPT, "Voice Recognition");
 		mSpeechRec.startListening(mIntent);
@@ -277,8 +286,6 @@ public class Workout extends Activity implements OnClickListener{
 						//set the baseline max amp
 						mBaselineAmp = Utils.getBaseline(mAverage);
 						stopListening();
-/*						replies.put(TextToSpeech.Engine.KEY_PARAM_UTTERANCE_ID, FINISHED_BASELINE);
-						mTts.speak("finished baseline recording", TextToSpeech.QUEUE_FLUSH, replies);*/
 						startResponseService(FINISHED_BASELINE);
 						mCheckBaseline = false;
 					}
@@ -309,15 +316,27 @@ public class Workout extends Activity implements OnClickListener{
 		mListeningForCommands = true;
 		//for persistence
 		mStartButton.setEnabled(false);
-		
-		 mRecorder = new MediaRecorder();
-		 mRecorder.setAudioSource(MediaRecorder.AudioSource.MIC);
-		 mRecorder.setOutputFormat(MediaRecorder.OutputFormat.THREE_GPP);
-		 String name = Utils.getOutputMediaFilePath();
-		 mRecorder.setOutputFile(name);
-		 mRecorder.setAudioEncoder(MediaRecorder.AudioEncoder.AMR_NB);
+		if (!mCheckBaseline && mTimer == null) {
+			createTimer();
+		}
+		if (mPause) {
+			//if it's stopped, start it (for pause case)
+			if(!mTimer.isDirty()) {
+				mTimer.start();
+				if(!mPauseButton.isEnabled()) {
+					mPauseButton.setEnabled(true);
+				}
+			}
+		}
 
-		 try {
+		mRecorder = new MediaRecorder();
+		mRecorder.setAudioSource(MediaRecorder.AudioSource.MIC);
+		mRecorder.setOutputFormat(MediaRecorder.OutputFormat.THREE_GPP);
+		String name = Utils.getOutputMediaFilePath();
+		mRecorder.setOutputFile(name);
+		mRecorder.setAudioEncoder(MediaRecorder.AudioEncoder.AMR_NB);
+
+		try {
 			mRecorder.prepare();
 			mRecorder.start();
 			checkMaxAmp.run();
@@ -372,14 +391,7 @@ public class Workout extends Activity implements OnClickListener{
 			case (1):{
 				//workout has already started
 				if (!mStartButton.isEnabled()) {
-/*					replies.put(TextToSpeech.Engine.KEY_PARAM_UTTERANCE_ID, WORKOUT_ALREADY_STARTED);
-					mTts.speak("workout has already started", TextToSpeech.QUEUE_FLUSH, replies);*/
 					startResponseService(WORKOUT_ALREADY_STARTED);
-				}
-				else{
-/*					replies.put(TextToSpeech.Engine.KEY_PARAM_UTTERANCE_ID, BEGIN_WORKOUT);
-					mTts.speak("starting workout", TextToSpeech.QUEUE_FLUSH, replies);*/
-					startResponseService(BEGIN_WORKOUT);
 				}
 				break;
 			}
@@ -387,22 +399,16 @@ public class Workout extends Activity implements OnClickListener{
 			case (2):{
 				//workout is in progress
 				if (!mStartButton.isEnabled()) {
-/*					replies.put(TextToSpeech.Engine.KEY_PARAM_UTTERANCE_ID, STOP_WORKOUT);
-					mTts.speak("stopping workout", TextToSpeech.QUEUE_FLUSH, replies);*/
 					startResponseService(STOP_WORKOUT);
 				}
 				//in limbo
 				else{
-/*					replies.put(TextToSpeech.Engine.KEY_PARAM_UTTERANCE_ID, WORKOUT_ALREADY_FINISHED);
-					mTts.speak("you are already done with the workout", TextToSpeech.QUEUE_FLUSH, replies);*/
 					startResponseService(WORKOUT_ALREADY_FINISHED);
 				}
 				break;
 			}
 			//update
 			case (3):{
-/*				replies.put(TextToSpeech.Engine.KEY_PARAM_UTTERANCE_ID, UPDATE_WORKOUT);
-				mTts.speak("update", TextToSpeech.QUEUE_FLUSH, replies);*/
 				startResponseService(UPDATE_WORKOUT);
 				break;
 			}
@@ -419,18 +425,26 @@ public class Workout extends Activity implements OnClickListener{
 				Log.w("Workout", "speak button is pressed");
 				//inform user of baseline reading
 				if (mCheckBaseline) {
-/*					replies.put(TextToSpeech.Engine.KEY_PARAM_UTTERANCE_ID, CREATING_BASELINE);
-					mTts.speak("creating baseline", TextToSpeech.QUEUE_FLUSH, replies);	*/
 					startResponseService(CREATING_BASELINE);
 				}
 				else {
-					startWorkout();	
+					startResponseService(RESUME_WORKOUT);
+
 				}
 				break;
 			}
 			case (R.id.stopButton):{
 				Log.w("Workout", "stop button is pressed");
 				stopWorkout();
+				break;
+			}
+			case (R.id.pauseButton):{
+				Log.w("Workout", "pause button is pressed");
+				if (mListeningForCommands) {
+					mPause = true;
+					mTimer.stop();
+					mPauseButton.setEnabled(false);
+				}
 				break;
 			}
 		}
@@ -461,9 +475,25 @@ public class Workout extends Activity implements OnClickListener{
 			//reset everything
 			mAverage.clear();
 			mStartButton.setEnabled(true);
-			
+			destroyTimer();
 		}
 	}
+	protected void createTimer() {
+		/* set the time that the timer is referencing
+		 * elapsedRealtime() = returns ms since boot */
+		mTimer = (Chronometer) findViewById(R.id.timer);
+		mTimer.setBase(SystemClock.elapsedRealtime());
+		mTimer.start();
+
+	}
+	protected void destroyTimer() {
+		//to prevent nullPointer
+		if (mTimer != null) {
+			mTimer.stop();
+			mTimer = null;
+		}
+	}
+	
 	/** Called when activity is interrupted, like orientation change */
 	@Override
 	protected void onPause() {
@@ -492,6 +522,10 @@ public class Workout extends Activity implements OnClickListener{
 	/** Called when user comes back to the activity */
 	@Override
 	protected void onResume() {
+		//for persistence
+		if (mTimer!= null) {
+			mTimer.setText("09");
+		}
 		Log.w("Workout", "on resume");
 		//so that can resume, but also considering first run of app
 		if (mListeningForCommands) {
@@ -515,6 +549,7 @@ public class Workout extends Activity implements OnClickListener{
 		this.registerReceiver(mReceiver, intentFilter);
 		super.onResume();
 	}
+	
 	/** Save the instance data */
 	@Override
 	protected void onSaveInstanceState(Bundle outState) {
@@ -568,7 +603,6 @@ public class Workout extends Activity implements OnClickListener{
 		@Override
 		public void onReceive(Context context, Intent intent) {
 			Log.w("Workout", "broadcast received");
-			// if the Intent's action matches FINISHED_SPEAKING
 			if (intent.getAction().equals(FINISHED_SPEAKING)) {
 				String action = intent.getStringExtra(FeedbackService.START_STOP);
 				Log.w("Workout", "action:  " + action);
