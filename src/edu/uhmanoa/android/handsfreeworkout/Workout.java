@@ -65,6 +65,7 @@ public class Workout extends Activity implements OnClickListener{
 	protected static final String SAVED_TIME_WHEN_STOPPED_VALUE = "time when stopped";
 	protected static final String SAVED_INITIAL_CREATE = "initial create";
 	protected static final String SAVED_COUNTER = "saved counter";
+	protected static final String SAVED_PAUSE = "saved pause";
 	
 	/** The time frequency at which check the max amplitude of the recording */
 	protected static final long UPDATE_FREQUENCY = 4000L;
@@ -90,9 +91,7 @@ public class Workout extends Activity implements OnClickListener{
 	 * ISSUES TO DEAL WITH STILL:
 	 * accidental loud noises
 	 * start up error with TTS (creating baseline gets cutoff and repeated)
-	 * persist pause state
-	 * persist timer in pause state
-	 * 
+	 *
 	 * 
 	 * NOTE: when workout is paused with voice, start button isn't enabled to restart
 	 * it.  when workout is paused with button, start button is enabled to restart
@@ -533,14 +532,23 @@ public class Workout extends Activity implements OnClickListener{
 		 * best method to use to get current time */
 		if (mInitialCreate) {
 			mTimer.setBase(SystemClock.elapsedRealtime());
+			mTimer.start();
 			mInitialCreate = false;
 		}
 		else {
 			//persisting the timer
 			mTimer.setText(mTimerText);
-			resumeTimer();
+			if (!mPause) {
+				resumeTimer();
+				mTimer.start();
+			}
+			else {
+				mTimer.setBase(SystemClock.elapsedRealtime() + mTimeWhenStopped);
+				mPauseButton.setEnabled(false);
+			}
+
 		}
-		mTimer.start();
+
 
 	}
 	/** Destroys the timer */
@@ -566,7 +574,7 @@ public class Workout extends Activity implements OnClickListener{
 		//adjust the timer to the correct time
 		mTimer.setBase(SystemClock.elapsedRealtime() + mTimeWhenStopped);
 		//reset the mTimeWhenStoped variable
-		mTimeWhenStopped = 0;
+		//mTimeWhenStopped = 0;
 		mTimer.start();
 		if(!mPauseButton.isEnabled()) {
 			mPauseButton.setEnabled(true);
@@ -584,7 +592,9 @@ public class Workout extends Activity implements OnClickListener{
 			mTimerText = (String) mTimer.getText();
 			Log.w("Workout", "timer Text:  " + mTimerText);
 			//for persistence
-			mTimeWhenStopped = mTimer.getBase() - SystemClock.elapsedRealtime();
+			if (!mPause) {
+				mTimeWhenStopped = mTimer.getBase() - SystemClock.elapsedRealtime();
+			}
 		}
 		//can't use the stop* methods because of the boolean flags
 		if (mRecorder != null) {
@@ -611,6 +621,7 @@ public class Workout extends Activity implements OnClickListener{
 	protected void onResume() {
 		Log.w("Workout", "on resume");
 		//so that can resume, but also considering first run of app
+
 		if (mListeningForCommands) {
 			Log.w("Workout", "listening for commands");
 			startListening();
@@ -652,6 +663,7 @@ public class Workout extends Activity implements OnClickListener{
 		outState.putLong(SAVED_TIME_WHEN_STOPPED_VALUE, mTimeWhenStopped);
 		outState.putBoolean(SAVED_INITIAL_CREATE, mInitialCreate);
 		outState.putInt(SAVED_COUNTER, mCounter);
+		outState.putBoolean(SAVED_PAUSE, mPause);
 		
 		Log.w("Workout","(save) mCheckBaseLine:  " + mCheckBaseline);
 		Log.w("Workout", "(save) doing speechRec:  " + mDoingSpeechRec);
@@ -660,6 +672,7 @@ public class Workout extends Activity implements OnClickListener{
 		Log.w("Workout", "(save) time when stopped text:  " + mTimeWhenStopped);
 		Log.w("Workout", "(save) initial create:  " + mInitialCreate);
 		Log.w("Workout", "(save) counter:  " + mCounter);
+		Log.w("Workout", "(save) pause:  " + mPause);
 		super.onSaveInstanceState(outState);
 	}
 	
@@ -682,6 +695,7 @@ public class Workout extends Activity implements OnClickListener{
 		mTimeWhenStopped = savedInstanceState.getLong(SAVED_TIME_WHEN_STOPPED_VALUE);
 		mInitialCreate = savedInstanceState.getBoolean(SAVED_INITIAL_CREATE);
 		mCounter = savedInstanceState.getInt(SAVED_COUNTER);
+		mPause = savedInstanceState.getBoolean(SAVED_PAUSE);
 		
 		Log.w("Workout","(restore) mCheckBaseLine:  " + mCheckBaseline);
 		Log.w("Workout", "(restore) doing speechRec:  " + mDoingSpeechRec);
@@ -690,6 +704,7 @@ public class Workout extends Activity implements OnClickListener{
 		Log.w("Workout", "(restore) time when stopped text:  " + mTimeWhenStopped);
 		Log.w("Workout", "(restore) initial create:  " + mInitialCreate);
 		Log.w("Workout", "(restore) counter:  " + mCounter);
+		Log.w("Workout", "(restore) pause:  " + mPause);
 	}
 
 	
