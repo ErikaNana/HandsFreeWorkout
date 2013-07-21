@@ -85,6 +85,8 @@ public class Workout extends Activity implements OnClickListener{
 	 * accidental loud noises
 	 * start up error with TTS (creating baseline gets cutoff and repeated)
 	 * pause state
+	 * Note: when workout is paused with voice, start button isn't enabled to restart
+	 * it.  when workout is paused with button, start button is enabled to restart
 	 */
 	
 	
@@ -436,6 +438,8 @@ public class Workout extends Activity implements OnClickListener{
 	public void onClick(View view) {
 		switch (view.getId()){
 			case(R.id.speakButton):{
+				//to be safe
+				mStartButton.setEnabled(false);
 				Log.w("Workout", "speak button is pressed");
 				//inform user of baseline reading
 				if (mCheckBaseline) {
@@ -494,14 +498,16 @@ public class Workout extends Activity implements OnClickListener{
 					stopVoiceRec();
 				}
 			}
-			if (!mPauseButton.isEnabled()) {
-				mPauseButton.setEnabled(true);
-			}
 			//reset everything
 			mAverage.clear();
 			mStartButton.setEnabled(true);
-			destroyTimer();
 		}
+		//always do this regardless
+		if (!mPauseButton.isEnabled()) {
+			mPauseButton.setEnabled(true);
+		}
+		mPause = false;
+		destroyTimer();
 	}
 	/** Creates the timer */
 	protected void createTimer() {
