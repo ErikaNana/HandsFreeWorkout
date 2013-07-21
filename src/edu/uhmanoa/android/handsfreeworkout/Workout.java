@@ -49,6 +49,7 @@ public class Workout extends Activity implements OnClickListener{
 	protected int mCounter;
 	protected boolean mPause;
 	protected FinishedSpeakingReceiver mReceiver;
+	protected long mTimeWhenStopped;
 	
 	/** Keys for saving and restoring instance data */
 	protected static final String SAVED_SPEECH_REC_ALIVE_VALUE = "saved speech";
@@ -317,15 +318,20 @@ public class Workout extends Activity implements OnClickListener{
 		//for persistence
 		mStartButton.setEnabled(false);
 		if (!mCheckBaseline && mTimer == null) {
+			Log.w("Workout","mTimer is null");
 			createTimer();
 		}
 		if (mPause) {
-			//if it's stopped, start it (for pause case)
-			if(!mTimer.isDirty()) {
-				mTimer.start();
-				if(!mPauseButton.isEnabled()) {
-					mPauseButton.setEnabled(true);
-				}
+			//if it's stopped, start it (for pause case, and need to say "Start" first)
+			Log.w("Workout", "timer is stopped");
+			//adjust the timer to the correct time
+			mTimer.setBase(SystemClock.elapsedRealtime() + mTimeWhenStopped);
+			//reset the mTimeWhenStopeed variable
+			mTimeWhenStopped = 0;
+			mTimer.start();
+			if(!mPauseButton.isEnabled()) {
+				mPauseButton.setEnabled(true);
+				mPause = false;
 			}
 		}
 
@@ -391,7 +397,14 @@ public class Workout extends Activity implements OnClickListener{
 			case (1):{
 				//workout has already started
 				if (!mStartButton.isEnabled()) {
-					startResponseService(WORKOUT_ALREADY_STARTED);
+					Log.w("Workout", "pause is:  " + mPause);
+					if (mPause) {
+						startResponseService(RESUME_WORKOUT);
+					}
+					else {
+						startResponseService(WORKOUT_ALREADY_STARTED);						
+					}
+
 				}
 				break;
 			}
@@ -428,8 +441,13 @@ public class Workout extends Activity implements OnClickListener{
 					startResponseService(CREATING_BASELINE);
 				}
 				else {
-					startResponseService(RESUME_WORKOUT);
-
+					//redundant code
+					if (mPause) {
+						startResponseService(RESUME_WORKOUT);
+					}
+					else {
+						startResponseService(RESUME_WORKOUT);
+					}
 				}
 				break;
 			}
@@ -442,6 +460,8 @@ public class Workout extends Activity implements OnClickListener{
 				Log.w("Workout", "pause button is pressed");
 				if (mListeningForCommands) {
 					mPause = true;
+					//save the time when the timer was stopped
+					mTimeWhenStopped = mTimer.getBase() - SystemClock.elapsedRealtime();
 					mTimer.stop();
 					mPauseButton.setEnabled(false);
 				}
