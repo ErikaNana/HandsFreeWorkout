@@ -8,7 +8,6 @@ import android.content.Intent;
 import android.speech.tts.TextToSpeech;
 import android.speech.tts.UtteranceProgressListener;
 import android.util.Log;
-import android.widget.Toast;
 
 public class FeedbackService extends IntentService implements TextToSpeech.OnInitListener {
 	/* Name of the string that identifies what the response should be */
@@ -28,6 +27,7 @@ public class FeedbackService extends IntentService implements TextToSpeech.OnIni
 	protected static final String CREATING_BASELINE = "creating baseline";
 	protected static final String FINISHED_BASELINE = "finished baseline";
 	protected static final String SILENCE = "silence";
+	protected static final String PAUSE_WORKOUT = "pause workout";
 	
 	/**Intent extra for the the broadcast receiver */
 	protected static final String START_STOP = "start stop workout";
@@ -43,12 +43,7 @@ public class FeedbackService extends IntentService implements TextToSpeech.OnIni
 	public void onInit(int status) {
 		if (status == TextToSpeech.SUCCESS) {
 			Log.w("Workout", "hit onInit");
-			int result = mTts.setLanguage(Locale.US);
-			//error checking
-			if (result == TextToSpeech.LANG_MISSING_DATA || result == TextToSpeech.LANG_NOT_SUPPORTED) {
-				String errorMessage = "The language is not supported, or the language data is missing.  Please check your installation.";
-				Toast.makeText(getBaseContext(), errorMessage, Toast.LENGTH_SHORT).show();
-			}
+			mTts.setLanguage(Locale.US);
 			//handle the intent
 			selectPhrase(mResponse);
 		}
@@ -89,49 +84,53 @@ public class FeedbackService extends IntentService implements TextToSpeech.OnIni
 		//based on the contents of response, say the appropriate thing
 		Log.w("FeedbackService", "selectPhrase code:  " + code);
 		switch (mResponse) {
-		case Workout.WORKOUT_ALREADY_STARTED:{
-			mReplies.put(TextToSpeech.Engine.KEY_PARAM_UTTERANCE_ID, WORKOUT_ALREADY_STARTED);
-			mTts.speak("workout has already started", TextToSpeech.QUEUE_FLUSH, mReplies);
-			break;
-		}
-		case Workout.RESUME_WORKOUT:{
-			mReplies.put(TextToSpeech.Engine.KEY_PARAM_UTTERANCE_ID, RESUME_WORKOUT);
-			mTts.speak("continuing workout", TextToSpeech.QUEUE_FLUSH, mReplies);
-			break;
-		}
-		case Workout.STOP_WORKOUT:{
-			mReplies.put(TextToSpeech.Engine.KEY_PARAM_UTTERANCE_ID, STOP_WORKOUT);
-			mTts.speak("stopping workout", TextToSpeech.QUEUE_FLUSH, mReplies);
-			break;
-		}
-		
-		case Workout.WORKOUT_ALREADY_FINISHED:{
-			mReplies.put(TextToSpeech.Engine.KEY_PARAM_UTTERANCE_ID, WORKOUT_ALREADY_FINISHED);
-			mTts.speak("you are already done with the workout", TextToSpeech.QUEUE_FLUSH, mReplies);
-			break;
-		}
-		case Workout.UPDATE_WORKOUT:{
-			mReplies.put(TextToSpeech.Engine.KEY_PARAM_UTTERANCE_ID, UPDATE_WORKOUT);
-			mTts.speak("update", TextToSpeech.QUEUE_FLUSH, mReplies);
-			break;
-		}
-		case Workout.CREATING_BASELINE:{
-			Log.w("FeedbackService", "creating baseline");
-			mReplies.put(TextToSpeech.Engine.KEY_PARAM_UTTERANCE_ID, CREATING_BASELINE);
-			mTts.speak("creating baseline", TextToSpeech.QUEUE_FLUSH, mReplies);	
-			break;
-		}
-		case Workout.FINISHED_BASELINE:{
-			mReplies.put(TextToSpeech.Engine.KEY_PARAM_UTTERANCE_ID, FINISHED_BASELINE);
-			mTts.speak("finished baseline recording.  starting workout.", TextToSpeech.QUEUE_FLUSH, mReplies);	
-			break;
-		}
-		case Workout.SILENCE:{
-			mReplies.put(TextToSpeech.Engine.KEY_PARAM_UTTERANCE_ID, SILENCE);
-			mTts.speak("silence", TextToSpeech.QUEUE_FLUSH, mReplies);
-			break;
-		}
-	}	
+			case Workout.WORKOUT_ALREADY_STARTED:{
+				mReplies.put(TextToSpeech.Engine.KEY_PARAM_UTTERANCE_ID, WORKOUT_ALREADY_STARTED);
+				mTts.speak("workout has already started", TextToSpeech.QUEUE_FLUSH, mReplies);
+				break;
+			}
+			case Workout.RESUME_WORKOUT:{
+				mReplies.put(TextToSpeech.Engine.KEY_PARAM_UTTERANCE_ID, RESUME_WORKOUT);
+				mTts.speak("continuing workout", TextToSpeech.QUEUE_FLUSH, mReplies);
+				break;
+			}
+			case Workout.STOP_WORKOUT:{
+				mReplies.put(TextToSpeech.Engine.KEY_PARAM_UTTERANCE_ID, STOP_WORKOUT);
+				mTts.speak("stopping workout", TextToSpeech.QUEUE_FLUSH, mReplies);
+				break;
+			}
+			
+			case Workout.WORKOUT_ALREADY_FINISHED:{
+				mReplies.put(TextToSpeech.Engine.KEY_PARAM_UTTERANCE_ID, WORKOUT_ALREADY_FINISHED);
+				mTts.speak("you are already done with the workout", TextToSpeech.QUEUE_FLUSH, mReplies);
+				break;
+			}
+			case Workout.UPDATE_WORKOUT:{
+				mReplies.put(TextToSpeech.Engine.KEY_PARAM_UTTERANCE_ID, UPDATE_WORKOUT);
+				mTts.speak("update", TextToSpeech.QUEUE_FLUSH, mReplies);
+				break;
+			}
+			case Workout.CREATING_BASELINE:{
+				Log.w("FeedbackService", "creating baseline");
+				mReplies.put(TextToSpeech.Engine.KEY_PARAM_UTTERANCE_ID, CREATING_BASELINE);
+				mTts.speak("creating baseline", TextToSpeech.QUEUE_FLUSH, mReplies);	
+				break;
+			}
+			case Workout.FINISHED_BASELINE:{
+				mReplies.put(TextToSpeech.Engine.KEY_PARAM_UTTERANCE_ID, FINISHED_BASELINE);
+				mTts.speak("finished baseline recording.  starting workout.", TextToSpeech.QUEUE_FLUSH, mReplies);	
+				break;
+			}
+			case Workout.SILENCE:{
+				mReplies.put(TextToSpeech.Engine.KEY_PARAM_UTTERANCE_ID, SILENCE);
+				mTts.speak("silence", TextToSpeech.QUEUE_FLUSH, mReplies);
+				break;
+			}
+			case Workout.PAUSE_WORKOUT:{
+				mReplies.put(TextToSpeech.Engine.KEY_PARAM_UTTERANCE_ID, PAUSE_WORKOUT);
+				mTts.speak("pausing workout", TextToSpeech.QUEUE_FLUSH, mReplies);
+			}
+		}	
 	}
 	/**Broadcast that speaking has finished.  Specifies whether or not to start/stop
 	 * the workout based on what has been said in the intent */

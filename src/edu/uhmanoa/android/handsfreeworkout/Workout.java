@@ -77,6 +77,7 @@ public class Workout extends Activity implements OnClickListener{
 	protected static final int FINISHED_BASELINE = 6;
 	protected static final int RESUME_WORKOUT = 7;
 	protected static final int SILENCE = 8;
+	protected static final int PAUSE_WORKOUT = 9;
 	
 	
 	/**
@@ -321,19 +322,6 @@ public class Workout extends Activity implements OnClickListener{
 			Log.w("Workout","mTimer is null");
 			createTimer();
 		}
-		if (mPause) {
-			//if it's stopped, start it (for pause case, and need to say "Start" first)
-			Log.w("Workout", "timer is stopped");
-			//adjust the timer to the correct time
-			mTimer.setBase(SystemClock.elapsedRealtime() + mTimeWhenStopped);
-			//reset the mTimeWhenStopeed variable
-			mTimeWhenStopped = 0;
-			mTimer.start();
-			if(!mPauseButton.isEnabled()) {
-				mPauseButton.setEnabled(true);
-				mPause = false;
-			}
-		}
 
 		mRecorder = new MediaRecorder();
 		mRecorder.setAudioSource(MediaRecorder.AudioSource.MIC);
@@ -382,6 +370,9 @@ public class Workout extends Activity implements OnClickListener{
 		if (results.contains("update")) {
 			word = 3;
 		}
+		if (results.contains("pause")) {
+			word = 4;
+		}
 		replyToCommands(word);
 	}
 	/** Replies to commands */
@@ -399,6 +390,11 @@ public class Workout extends Activity implements OnClickListener{
 				if (!mStartButton.isEnabled()) {
 					Log.w("Workout", "pause is:  " + mPause);
 					if (mPause) {
+						if (mPause) {
+							//if it's stopped, start it (for pause case, and need to say "Start" first)
+							Log.w("Workout", "timer is stopped");
+							resumeTimer();
+						}
 						startResponseService(RESUME_WORKOUT);
 					}
 					else {
@@ -425,6 +421,11 @@ public class Workout extends Activity implements OnClickListener{
 				startResponseService(UPDATE_WORKOUT);
 				break;
 			}
+			case (4):{
+				setPause();
+				startResponseService(PAUSE_WORKOUT);
+				break;
+			}
 			//none of the commands were spoken
 			default:
 				startListening();
@@ -443,6 +444,7 @@ public class Workout extends Activity implements OnClickListener{
 				else {
 					//redundant code
 					if (mPause) {
+						resumeTimer();
 						startResponseService(RESUME_WORKOUT);
 					}
 					else {
@@ -459,11 +461,11 @@ public class Workout extends Activity implements OnClickListener{
 			case (R.id.pauseButton):{
 				Log.w("Workout", "pause button is pressed");
 				if (mListeningForCommands) {
-					mPause = true;
-					//save the time when the timer was stopped
-					mTimeWhenStopped = mTimer.getBase() - SystemClock.elapsedRealtime();
-					mTimer.stop();
-					mPauseButton.setEnabled(false);
+					setPause();
+					if(!mStartButton.isEnabled()) {
+						stopListening();
+						mStartButton.setEnabled(true);
+					}
 				}
 				break;
 			}
@@ -492,12 +494,16 @@ public class Workout extends Activity implements OnClickListener{
 					stopVoiceRec();
 				}
 			}
+			if (!mPauseButton.isEnabled()) {
+				mPauseButton.setEnabled(true);
+			}
 			//reset everything
 			mAverage.clear();
 			mStartButton.setEnabled(true);
 			destroyTimer();
 		}
 	}
+	/** Creates the timer */
 	protected void createTimer() {
 		/* set the time that the timer is referencing
 		 * elapsedRealtime() = returns ms since boot */
@@ -506,6 +512,7 @@ public class Workout extends Activity implements OnClickListener{
 		mTimer.start();
 
 	}
+	/** Destroys the timer */
 	protected void destroyTimer() {
 		//to prevent nullPointer
 		if (mTimer != null) {
@@ -514,6 +521,27 @@ public class Workout extends Activity implements OnClickListener{
 		}
 	}
 	
+	/** Sets up the pause state */
+	public void setPause () {
+		mPause = true;
+		//save the time when the timer was stopped
+		mTimeWhenStopped = mTimer.getBase() - SystemClock.elapsedRealtime();
+		mTimer.stop();
+		mPauseButton.setEnabled(false);
+	}
+	
+	/*Resumes the timer */
+	public void resumeTimer() {
+		//adjust the timer to the correct time
+		mTimer.setBase(SystemClock.elapsedRealtime() + mTimeWhenStopped);
+		//reset the mTimeWhenStopeed variable
+		mTimeWhenStopped = 0;
+		mTimer.start();
+		if(!mPauseButton.isEnabled()) {
+			mPauseButton.setEnabled(true);
+			mPause = false;
+		}
+	}
 	/** Called when activity is interrupted, like orientation change */
 	@Override
 	protected void onPause() {
