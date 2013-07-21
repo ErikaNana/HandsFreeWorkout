@@ -84,8 +84,10 @@ public class Workout extends Activity implements OnClickListener{
 	 * ISSUES TO DEAL WITH STILL:
 	 * accidental loud noises
 	 * start up error with TTS (creating baseline gets cutoff and repeated)
-	 * pause state
-	 * Note: when workout is paused with voice, start button isn't enabled to restart
+	 * persist pause state
+	 * 
+	 * 
+	 * NOTE: when workout is paused with voice, start button isn't enabled to restart
 	 * it.  when workout is paused with button, start button is enabled to restart
 	 */
 	
