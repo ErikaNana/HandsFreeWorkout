@@ -42,7 +42,6 @@ public class FeedbackService extends IntentService implements TextToSpeech.OnIni
 	@Override
 	public void onInit(int status) {
 		if (status == TextToSpeech.SUCCESS) {
-			Log.w("Workout", "hit onInit");
 			mTts.setLanguage(Locale.US);
 			//handle the intent
 			selectPhrase(mResponse);
@@ -74,15 +73,12 @@ public class FeedbackService extends IntentService implements TextToSpeech.OnIni
 	/** Callback method */
 	@Override
 	protected void onHandleIntent(Intent intent) {
-		Log.w("FeedbackService", "handling the intent");
 		//get data from the incoming intent
 		mResponse = intent.getIntExtra(RESPONSE_STRING, 0);
-		Log.w("FeedbackService", "response code:  " + mResponse);
 	}
 	/** Determines what needs to be said */
 	protected void selectPhrase (int code) {
 		//based on the contents of response, say the appropriate thing
-		Log.w("FeedbackService", "selectPhrase code:  " + code);
 		switch (mResponse) {
 			case Workout.WORKOUT_ALREADY_STARTED:{
 				mReplies.put(TextToSpeech.Engine.KEY_PARAM_UTTERANCE_ID, WORKOUT_ALREADY_STARTED);
@@ -167,7 +163,6 @@ public class FeedbackService extends IntentService implements TextToSpeech.OnIni
 				 * destroys the TTS object, so can't announce stop */
 				if (id.equals(STOP_WORKOUT)) {
 					//being a good citizen
-					Log.w("Feedback Service", "being a good citizen");
 					destroyTTS();
 					announceFinished(STOP);
 				}

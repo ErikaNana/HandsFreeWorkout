@@ -28,20 +28,20 @@ import android.widget.ListView;
 
 public class Workout extends Activity implements OnClickListener{
 
-	protected ListView wordsList;
-	protected Intent mIntent;
-	protected SpeechRecognizer mSpeechRec;
-	protected RecognitionListener mSpeechRecListen;
-	protected Handler mHandler;
-	protected MediaRecorder mRecorder;
-	protected ArrayList<Integer> mAverage;
-	protected Button mStartButton;
+	protected ListView wordsList; //list of words that voice rec heard
+	protected Intent mIntent; //intent to start voice rec activity
+	protected SpeechRecognizer mSpeechRec; 
+	protected RecognitionListener mSpeechRecListen; 
+	protected Handler mHandler; //handler that handles the voice rec and speech rec checks
+	protected MediaRecorder mRecorder; //recorder that listens for a command
+	protected ArrayList<Integer> mAverage; 
+	protected Button mStartButton; 
 	protected Button mStopButton;
 	protected Button mPauseButton;
-	protected Chronometer mTimer;
+	protected Chronometer mTimer; 
 	
 	protected boolean mSpeechRecAlive;
-	protected boolean mFinished;
+	protected boolean mFinished; //if speech recognition heard something
 	protected boolean mDoingSpeechRec;
 	protected boolean mCheckBaseline;
 	protected boolean mListeningForCommands;
@@ -50,6 +50,8 @@ public class Workout extends Activity implements OnClickListener{
 	protected boolean mPause;
 	protected FinishedSpeakingReceiver mReceiver;
 	protected long mTimeWhenStopped;
+	protected String mTimerText;
+	protected boolean mInitialCreate; //determines if app is initial creation state
 	
 	/** Keys for saving and restoring instance data */
 	protected static final String SAVED_SPEECH_REC_ALIVE_VALUE = "saved speech";
@@ -59,6 +61,9 @@ public class Workout extends Activity implements OnClickListener{
 	protected static final String SAVED_BASELINE_AMP_VALUE = "saved baseline";
 	protected static final String SAVED_LISTENING_FOR_COMMANDS_VALUE = "listening for commands";
 	protected static final String SAVED_AVERAGE_ARRAYLIST_VALUE = "average array list";
+	protected static final String SAVED_TIMER_TEXT_VALUE = "timer text";
+	protected static final String SAVED_TIME_WHEN_STOPPED_VALUE = "time when stopped";
+	protected static final String SAVED_INITIAL_CREATE = "initial create";
 	
 	/** The time frequency at which check the max amplitude of the recording */
 	protected static final long UPDATE_FREQUENCY = 4000L;
@@ -85,6 +90,7 @@ public class Workout extends Activity implements OnClickListener{
 	 * accidental loud noises
 	 * start up error with TTS (creating baseline gets cutoff and repeated)
 	 * persist pause state
+	 * persist timer in pause state
 	 * 
 	 * 
 	 * NOTE: when workout is paused with voice, start button isn't enabled to restart
@@ -108,7 +114,7 @@ public class Workout extends Activity implements OnClickListener{
 		mHandler = new Handler();
 		mSpeechRecAlive = false;
 		mAverage = new ArrayList<Integer>();
-		
+		mInitialCreate = true;
 		//disable button if no recognition service is present
 		PackageManager pm = getPackageManager();
 		/*queryIntentActivities() = Retrieves all activities that can be performed for
@@ -128,8 +134,8 @@ public class Workout extends Activity implements OnClickListener{
 	
 	/* Start voice recognition */
 	public void startVoiceRec() {
-		mDoingSpeechRec = true;
 		//for persistence
+		mDoingSpeechRec = true;
 		mStartButton.setEnabled(false);
 		mSpeechRec = SpeechRecognizer.createSpeechRecognizer(this);
 		mSpeechRecListen = new RecognitionListener() {
@@ -188,13 +194,12 @@ public class Workout extends Activity implements OnClickListener{
 			}
 			@Override
 			public void onEvent(int arg0, Bundle arg1) {
-				Log.w("Workout", "on Event");
-				
+				//don't need
 			}
 
 			@Override
 			public void onPartialResults(Bundle arg0) {
-				Log.w("Workout", "partial results");
+				//don't need
 			}
 
 			@Override
@@ -221,7 +226,7 @@ public class Workout extends Activity implements OnClickListener{
 
 			@Override
 			public void onRmsChanged(float arg0) {
-				// TODO Auto-generated method stub
+				//don't need
 				
 			}
 		};
@@ -425,8 +430,9 @@ public class Workout extends Activity implements OnClickListener{
 				startResponseService(UPDATE_WORKOUT);
 				break;
 			}
+			//pause
 			case (4):{
-				setPause();
+				pauseTimer();
 				startResponseService(PAUSE_WORKOUT);
 				break;
 			}
@@ -467,7 +473,7 @@ public class Workout extends Activity implements OnClickListener{
 			case (R.id.pauseButton):{
 				Log.w("Workout", "pause button is pressed");
 				if (mListeningForCommands) {
-					setPause();
+					pauseTimer();
 					if(!mStartButton.isEnabled()) {
 						stopListening();
 						mStartButton.setEnabled(true);
@@ -511,12 +517,21 @@ public class Workout extends Activity implements OnClickListener{
 		mPause = false;
 		destroyTimer();
 	}
-	/** Creates the timer */
+	/** Creates the timer and sets the base time */
 	protected void createTimer() {
-		/* set the time that the timer is referencing
-		 * elapsedRealtime() = returns ms since boot */
+		Log.w("Workout","initial create:  " + mInitialCreate);
 		mTimer = (Chronometer) findViewById(R.id.timer);
-		mTimer.setBase(SystemClock.elapsedRealtime());
+		/* elapsedRealtime() = returns ms since boot
+		 * best method to use to get current time */
+		if (mInitialCreate) {
+			mTimer.setBase(SystemClock.elapsedRealtime());
+			mInitialCreate = false;
+		}
+		else {
+			//persisting the timer
+			mTimer.setText(mTimerText);
+			resumeTimer();
+		}
 		mTimer.start();
 
 	}
@@ -530,7 +545,7 @@ public class Workout extends Activity implements OnClickListener{
 	}
 	
 	/** Sets up the pause state */
-	public void setPause () {
+	public void pauseTimer () {
 		mPause = true;
 		//save the time when the timer was stopped
 		mTimeWhenStopped = mTimer.getBase() - SystemClock.elapsedRealtime();
@@ -542,7 +557,7 @@ public class Workout extends Activity implements OnClickListener{
 	public void resumeTimer() {
 		//adjust the timer to the correct time
 		mTimer.setBase(SystemClock.elapsedRealtime() + mTimeWhenStopped);
-		//reset the mTimeWhenStopeed variable
+		//reset the mTimeWhenStoped variable
 		mTimeWhenStopped = 0;
 		mTimer.start();
 		if(!mPauseButton.isEnabled()) {
@@ -556,6 +571,12 @@ public class Workout extends Activity implements OnClickListener{
 		Log.w("Workout", "activity interrupted");
 		Log.w("Workout", "(on pause) listening for commands:  " + mListeningForCommands);
 		Log.w("Workout", "(on pause) speech rec:  " + mDoingSpeechRec);
+		if (mTimer != null) {
+			mTimerText = (String) mTimer.getText();
+			Log.w("Workout", "timer Text:  " + mTimerText);
+			//for persistence
+			mTimeWhenStopped = mTimer.getBase() - SystemClock.elapsedRealtime();
+		}
 		//can't use the stop* methods because of the boolean flags
 		if (mRecorder != null) {
 			mHandler.removeCallbacks(checkMaxAmp);
@@ -578,10 +599,6 @@ public class Workout extends Activity implements OnClickListener{
 	/** Called when user comes back to the activity */
 	@Override
 	protected void onResume() {
-		//for persistence
-		if (mTimer!= null) {
-			mTimer.setText("09");
-		}
 		Log.w("Workout", "on resume");
 		//so that can resume, but also considering first run of app
 		if (mListeningForCommands) {
@@ -619,9 +636,16 @@ public class Workout extends Activity implements OnClickListener{
 		outState.putBoolean(SAVED_LISTENING_FOR_COMMANDS_VALUE, mListeningForCommands);
 		outState.putInt(SAVED_BASELINE_AMP_VALUE, mBaselineAmp);
 		outState.putIntegerArrayList(SAVED_AVERAGE_ARRAYLIST_VALUE, mAverage);
+		outState.putString(SAVED_TIMER_TEXT_VALUE, mTimerText);
+		outState.putLong(SAVED_TIME_WHEN_STOPPED_VALUE, mTimeWhenStopped);
+		outState.putBoolean(SAVED_INITIAL_CREATE, mInitialCreate);
+		
 		Log.w("Workout","(save) mCheckBaseLine:  " + mCheckBaseline);
 		Log.w("Workout", "(save) doing speechRec:  " + mDoingSpeechRec);
 		Log.w("Workout", "(save) listening for commands:  " + mListeningForCommands);
+		Log.w("Workout", "(save) timer text:  " + mTimerText);
+		Log.w("Workout", "(save) time when stopped text:  " + mTimeWhenStopped);
+		Log.w("Workout", "(save) initial create:  " + mInitialCreate);
 		super.onSaveInstanceState(outState);
 	}
 	
@@ -640,9 +664,16 @@ public class Workout extends Activity implements OnClickListener{
 		mListeningForCommands = savedInstanceState.getBoolean(SAVED_LISTENING_FOR_COMMANDS_VALUE);
 		mBaselineAmp = savedInstanceState.getInt(SAVED_BASELINE_AMP_VALUE);
 		mAverage = savedInstanceState.getIntegerArrayList(SAVED_AVERAGE_ARRAYLIST_VALUE);
+		mTimerText = savedInstanceState.getString(SAVED_TIMER_TEXT_VALUE);
+		mTimeWhenStopped = savedInstanceState.getLong(SAVED_TIME_WHEN_STOPPED_VALUE);
+		mInitialCreate = savedInstanceState.getBoolean(SAVED_INITIAL_CREATE);
+		
 		Log.w("Workout","(restore) mCheckBaseLine:  " + mCheckBaseline);
 		Log.w("Workout", "(restore) doing speechRec:  " + mDoingSpeechRec);
 		Log.w("Workout", "(restore) listening for commands:  " + mListeningForCommands);
+		Log.w("Workout", "(restore) timer text:  " + mTimerText);
+		Log.w("Workout", "(restore) time when stopped text:  " + mTimeWhenStopped);
+		Log.w("Workout", "(restore) initial create:  " + mInitialCreate);
 	}
 
 	
