@@ -69,6 +69,7 @@ public class FeedbackService extends IntentService implements TextToSpeech.OnIni
 	protected void destroyTTS() {
 		mTts.stop();
 		mTts.shutdown();
+		mTts = null;
 	}
 	/** Callback method */
 	@Override
