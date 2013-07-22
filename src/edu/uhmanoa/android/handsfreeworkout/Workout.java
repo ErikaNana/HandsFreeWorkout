@@ -11,6 +11,7 @@ import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.pm.PackageManager;
 import android.content.pm.ResolveInfo;
+import android.graphics.Typeface;
 import android.media.MediaRecorder;
 import android.os.Bundle;
 import android.os.Handler;
@@ -21,14 +22,14 @@ import android.speech.SpeechRecognizer;
 import android.util.Log;
 import android.view.View;
 import android.view.View.OnClickListener;
-import android.widget.ArrayAdapter;
+import android.view.Window;
 import android.widget.Button;
 import android.widget.Chronometer;
-import android.widget.ListView;
+import android.widget.LinearLayout;
+import android.widget.TextView;
 
 public class Workout extends Activity implements OnClickListener{
-
-	protected ListView wordsList; //list of words that voice rec heard
+	
 	protected Intent mIntent; //intent to start voice rec activity
 	protected SpeechRecognizer mSpeechRec; 
 	protected RecognitionListener mSpeechRecListen; 
@@ -38,6 +39,8 @@ public class Workout extends Activity implements OnClickListener{
 	protected Button mStartButton; 
 	protected Button mStopButton;
 	protected Button mPauseButton;
+	protected TextView mWelcomeMessage;
+	protected TextView mCommandText;
 	protected Chronometer mTimer; 
 	
 	protected boolean mSpeechRecAlive;
@@ -69,7 +72,7 @@ public class Workout extends Activity implements OnClickListener{
 	
 	/** The time frequency at which check the max amplitude of the recording */
 	protected static final long UPDATE_FREQUENCY = 4000L;
-	protected static final long CHECK_FREQUENCY = 2000L; //change this to 50L after debugging
+	protected static final long CHECK_FREQUENCY = 300L; //change this to 50L after debugging
 	protected static final long BASELINE_FREQUENCY = 1000L;
 	
 	/** Name of the string that identifies what the response should be */
@@ -85,6 +88,7 @@ public class Workout extends Activity implements OnClickListener{
 	protected static final int RESUME_WORKOUT = 7;
 	protected static final int SILENCE = 8;
 	protected static final int PAUSE_WORKOUT = 9;
+	protected static final int COMMAND_NOT_RECOGNIZED = 10;
 	
 	/**Extra for update */
 	protected static final String UPDATE_TIME_STRING = "update value string";
@@ -102,16 +106,28 @@ public class Workout extends Activity implements OnClickListener{
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
+		//Remove title bar
+		this.requestWindowFeature(Window.FEATURE_NO_TITLE);
+		
+		//inflate the layout
 		setContentView(R.layout.workout);
+		setLayoutFont();
 		
 		//initialize variables
+		mWelcomeMessage = (TextView) findViewById(R.id.welcomeMessage);
+		mCommandText = (TextView) findViewById(R.id.command);
+		
 		mStartButton = (Button) findViewById(R.id.speakButton);
 		mStartButton.setOnClickListener(this);
+		
 		mStopButton = (Button) findViewById(R.id.stopButton);
 		mStopButton.setOnClickListener(this);
+
+		
 		mPauseButton = (Button) findViewById(R.id.pauseButton);
 		mPauseButton.setOnClickListener(this);
-		wordsList = (ListView) findViewById(R.id.list);
+		
+
 		mHandler = new Handler();
 		mSpeechRecAlive = false;
 		mAverage = new ArrayList<Integer>();
@@ -323,7 +339,6 @@ public class Workout extends Activity implements OnClickListener{
 						checkSpeechRec.run();
 					}
 					frequency = Workout.CHECK_FREQUENCY;
-					Log.w("Workout", "max amp:  " + maxAmp);
 				}
 				mHandler.postDelayed(checkMaxAmp, frequency);
 			}
@@ -372,22 +387,26 @@ public class Workout extends Activity implements OnClickListener{
 	public void handleInput(ArrayList<String> results) {
 		//use a default layout to display the words
 		mDoingSpeechRec = false;
-	    wordsList.setAdapter(new ArrayAdapter<String>(this, android.R.layout.simple_list_item_1,
-	                results));
-		Log.e("Workout", "results");
+		String command = "command not recognized";
+		
 		int word = 0;
 		if (results.contains("start")) {
+			command = "start";
 			word = 1;
 		}
 		if (results.contains("stop")) {
+			command = "stop";
 			word = 2;
 		}
 		if (results.contains("update")) {
+			command = "update";
 			word = 3;
 		}
 		if (results.contains("pause")) {
+			command = "pause";
 			word = 4;
 		}
+		mCommandText.setText(command);
 		replyToCommands(word);
 	}
 	/** Replies to commands */
@@ -443,7 +462,7 @@ public class Workout extends Activity implements OnClickListener{
 			}
 			//none of the commands were spoken
 			default:
-				startListening();
+				startResponseService(COMMAND_NOT_RECOGNIZED);
 		}
 	}
 	/**Handle button clicks */
@@ -726,13 +745,35 @@ public class Workout extends Activity implements OnClickListener{
 					startListening();
 				}
 				if(action.equals(FeedbackService.STOP)) {
-					//don't do anything
+					//maybe use this to prompt the user to save the workout
 				}
 			}
 			else {
 				Log.w("Workout", "intent action:  " + intent.getAction());
 			}
+			//for a flash effect
+			mCommandText.setText("");
 		}
 
+	}
+	
+	/**Set the layout font */
+	public void setLayoutFont() {
+		Typeface font = Typeface.createFromAsset(getAssets(), "fonts/Edmondsans-Bold.otf");
+		LinearLayout layout = (LinearLayout) findViewById(R.id.layout);
+		int count= layout.getChildCount();
+		for (int i = 0; i < count; i++) {
+			View view = layout.getChildAt(i);
+			if (view instanceof TextView) {
+				((TextView) view).setTypeface(font);
+			}
+			if (view instanceof Chronometer) {
+				((Chronometer) view).setTypeface(font);
+			}
+			if (view instanceof Button) {
+				((Button) view).setTypeface(font);
+			}
+		}
+		
 	}
 }

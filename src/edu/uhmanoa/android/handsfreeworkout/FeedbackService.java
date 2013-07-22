@@ -30,6 +30,7 @@ public class FeedbackService extends IntentService implements TextToSpeech.OnIni
 	protected static final String FINISHED_BASELINE = "finished baseline";
 	protected static final String SILENCE = "silence";
 	protected static final String PAUSE_WORKOUT = "pause workout";
+	protected static final String COMMAND_NOT_RECOGNIZED = "command not recognized";
 	
 	/**Intent extra for the the broadcast receiver */
 	protected static final String START_STOP = "start stop workout";
@@ -134,6 +135,10 @@ public class FeedbackService extends IntentService implements TextToSpeech.OnIni
 			case Workout.PAUSE_WORKOUT:{
 				mReplies.put(TextToSpeech.Engine.KEY_PARAM_UTTERANCE_ID, PAUSE_WORKOUT);
 				mTTS.speak("pausing workout", TextToSpeech.QUEUE_FLUSH, mReplies);
+			}
+			case Workout.COMMAND_NOT_RECOGNIZED:{
+				mReplies.put(TextToSpeech.Engine.KEY_PARAM_UTTERANCE_ID, COMMAND_NOT_RECOGNIZED);
+				mTTS.speak("command not recognized", TextToSpeech.QUEUE_FLUSH, mReplies);
 			}
 		}	
 	}

@@ -1,43 +1,63 @@
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools"
+    android:id = "@+id/layout"
     android:layout_width="fill_parent"
     android:layout_height="fill_parent"
     android:orientation="vertical">
 
     <TextView
+        android:id = "@+id/welcomeMessage"
         android:layout_width="fill_parent"
         android:layout_height="wrap_content"
         android:gravity="center"
-        android:paddingBottom="4dip"
-        android:text="@string/textView_text" />
+        android:paddingTop = "10dip"
+        android:layout_marginTop="20dp"
+        android:paddingLeft = "40dip"
+        android:paddingRight = "40dip" 
+        android:text="@string/textView_text" 
+        android:textSize="@dimen/welcomeTextSize"/>
 
     <Button
         android:id="@+id/speakButton"
         android:layout_width="fill_parent"
-        android:layout_height="wrap_content" 
-        android:text="@string/startButton_text" />
+        android:layout_height="wrap_content"
+        android:paddingLeft = "4dip"
+        android:paddingRight = "4dip" 
+        android:paddingTop = "10dip"
+        android:layout_marginTop="20dp"
+        android:text="@string/startButton_text"
+        android:textSize="@dimen/ButtonTextSize" />
     <Button
         android:id="@+id/pauseButton"
         android:layout_width="fill_parent"
-        android:layout_height="wrap_content" 
-        android:text="@string/pauseButton_text" />
+        android:layout_height="wrap_content"
+        android:paddingLeft = "4dip"
+        android:paddingRight = "4dip" 
+        android:text="@string/pauseButton_text"
+        android:textSize="@dimen/ButtonTextSize" />
     
     <Button
         android:id="@+id/stopButton"
         android:layout_width="fill_parent"
-        android:layout_height="wrap_content" 
-        android:text="@string/stopButton_text" />
+        android:layout_height="wrap_content"
+        android:paddingLeft = "4dip"
+        android:paddingRight = "4dip" 
+        android:text="@string/stopButton_text"
+        android:textSize="@dimen/ButtonTextSize" />
 
     <Chronometer
         android:id="@+id/timer"
         android:layout_width="fill_parent"
         android:layout_height="wrap_content"
         android:gravity="center"
-        android:textSize="@dimen/timerText" />
+        android:textSize="@dimen/timerTextSize" />
     
-    <ListView
-        android:id="@+id/list"
-        android:layout_width = "fill_parent"
-        android:layout_height = "0dip"
-        android:layout_weight = "1" />
+    <TextView
+        android:id = "@+id/command"
+        android:layout_width="fill_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center"
+        android:textSize="@dimen/commandTextSize"
+        android:paddingBottom="4dip" />
+    
 </LinearLayout>
