@@ -69,10 +69,13 @@ public class Workout extends Activity implements OnClickListener{
 	protected static final String SAVED_INITIAL_CREATE = "initial create";
 	protected static final String SAVED_COUNTER = "saved counter";
 	protected static final String SAVED_PAUSE = "saved pause";
+	protected static final String SAVED_PAUSE_COMMAND_TEXT = "saved pause command text";
 	
-	/** The time frequency at which check the max amplitude of the recording */
+	/** The time frequency at which check if speech recognizer is still alive */
 	protected static final long UPDATE_FREQUENCY = 4000L;
-	protected static final long CHECK_FREQUENCY = 300L; //change this to 50L after debugging
+	/** The time frequency at which check the max amplitude of the recording */
+	protected static final long CHECK_FREQUENCY = 350L; 
+	/** The time frequency at which do recording for baseline */
 	protected static final long BASELINE_FREQUENCY = 1000L;
 	
 	/** Name of the string that identifies what the response should be */
@@ -96,7 +99,10 @@ public class Workout extends Activity implements OnClickListener{
 	 * ISSUES TO DEAL WITH STILL:
 	 * accidental loud noises
 	 * start up error with TTS (creating baseline gets cutoff and repeated)
-	 *
+	 * maybe for baseline, require user to say a phrase for x amount of seconds.  
+	 * if amp is within 5% of that, then it is a command
+	 * 
+	 * error checking (can't allow to say paused twice)
 	 * 
 	 * NOTE: when workout is paused with voice, start button isn't enabled to restart
 	 * it.  when workout is paused with button, start button is enabled to restart
@@ -406,6 +412,7 @@ public class Workout extends Activity implements OnClickListener{
 			command = "pause";
 			word = 4;
 		}
+		Log.w("Workout", "command:  " + command);
 		mCommandText.setText(command);
 		replyToCommands(word);
 	}
@@ -554,6 +561,7 @@ public class Workout extends Activity implements OnClickListener{
 			//persisting the timer
 			mTimer.setText(mTimerText);
 			if (!mPause) {
+				mCommandText.setText("");	
 				resumeTimer();
 				mTimer.start();
 			}
@@ -672,6 +680,7 @@ public class Workout extends Activity implements OnClickListener{
 		outState.putBoolean(SAVED_INITIAL_CREATE, mInitialCreate);
 		outState.putInt(SAVED_COUNTER, mCounter);
 		outState.putBoolean(SAVED_PAUSE, mPause);
+		outState.putString(SAVED_PAUSE_COMMAND_TEXT, (String) mCommandText.getText());
 		
 		Log.w("Workout", "(save) doing speechRec:  " + mDoingSpeechRec);
 		Log.w("Workout", "(save) listening for commands:  " + mListeningForCommands);
@@ -703,7 +712,7 @@ public class Workout extends Activity implements OnClickListener{
 		mInitialCreate = savedInstanceState.getBoolean(SAVED_INITIAL_CREATE);
 		mCounter = savedInstanceState.getInt(SAVED_COUNTER);
 		mPause = savedInstanceState.getBoolean(SAVED_PAUSE);
-		
+		mCommandText.setText(savedInstanceState.getString(SAVED_PAUSE_COMMAND_TEXT));
 
 		Log.w("Workout", "(restore) doing speechRec:  " + mDoingSpeechRec);
 		Log.w("Workout", "(restore) listening for commands:  " + mListeningForCommands);
@@ -751,8 +760,10 @@ public class Workout extends Activity implements OnClickListener{
 			else {
 				Log.w("Workout", "intent action:  " + intent.getAction());
 			}
-			//for a flash effect
-			mCommandText.setText("");
+			//for a flash effect, but for pause want text to remain until start again
+			if(!mPause) {
+				mCommandText.setText("");			
+			}
 		}
 
 	}

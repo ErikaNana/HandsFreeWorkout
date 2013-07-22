@@ -3,30 +3,36 @@
     android:id = "@+id/layout"
     android:layout_width="fill_parent"
     android:layout_height="fill_parent"
-    android:orientation="vertical">
+    android:orientation="vertical"
+    android:gravity="center">
 
     <TextView
         android:id = "@+id/welcomeMessage"
         android:layout_width="fill_parent"
         android:layout_height="wrap_content"
         android:gravity="center"
-        android:paddingTop = "10dip"
-        android:layout_marginTop="20dp"
         android:paddingLeft = "40dip"
         android:paddingRight = "40dip" 
         android:text="@string/textView_text" 
         android:textSize="@dimen/welcomeTextSize"/>
-
+    
+    <Chronometer
+        android:id="@+id/timer"
+        android:layout_width="fill_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center"
+        android:textSize="@dimen/timerTextSize" />
+    
     <Button
         android:id="@+id/speakButton"
         android:layout_width="fill_parent"
         android:layout_height="wrap_content"
         android:paddingLeft = "4dip"
         android:paddingRight = "4dip" 
-        android:paddingTop = "10dip"
-        android:layout_marginTop="20dp"
+		android:layout_marginTop="10dip"
         android:text="@string/startButton_text"
         android:textSize="@dimen/ButtonTextSize" />
+    
     <Button
         android:id="@+id/pauseButton"
         android:layout_width="fill_parent"
@@ -44,19 +50,13 @@
         android:paddingRight = "4dip" 
         android:text="@string/stopButton_text"
         android:textSize="@dimen/ButtonTextSize" />
-
-    <Chronometer
-        android:id="@+id/timer"
-        android:layout_width="fill_parent"
-        android:layout_height="wrap_content"
-        android:gravity="center"
-        android:textSize="@dimen/timerTextSize" />
     
     <TextView
         android:id = "@+id/command"
         android:layout_width="fill_parent"
         android:layout_height="wrap_content"
         android:gravity="center"
+       	android:layout_marginTop="15dip"
         android:textSize="@dimen/commandTextSize"
         android:paddingBottom="4dip" />
     

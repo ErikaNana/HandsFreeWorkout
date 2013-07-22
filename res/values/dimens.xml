@@ -4,8 +4,8 @@
     <dimen name="activity_horizontal_margin">16dp</dimen>
     <dimen name="activity_vertical_margin">16dp</dimen>
     <dimen name="timerTextSize">60sp</dimen>
-    <dimen name="welcomeTextSize">25sp</dimen>
-    <dimen name="commandTextSize">40sp</dimen>
+    <dimen name="welcomeTextSize">35sp</dimen>
+    <dimen name="commandTextSize">35sp</dimen>
     <dimen name="ButtonTextSize">20sp</dimen>
 
 </resources>

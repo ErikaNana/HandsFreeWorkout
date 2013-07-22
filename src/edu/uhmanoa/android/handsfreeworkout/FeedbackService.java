@@ -135,10 +135,12 @@ public class FeedbackService extends IntentService implements TextToSpeech.OnIni
 			case Workout.PAUSE_WORKOUT:{
 				mReplies.put(TextToSpeech.Engine.KEY_PARAM_UTTERANCE_ID, PAUSE_WORKOUT);
 				mTTS.speak("pausing workout", TextToSpeech.QUEUE_FLUSH, mReplies);
+				break;
 			}
 			case Workout.COMMAND_NOT_RECOGNIZED:{
 				mReplies.put(TextToSpeech.Engine.KEY_PARAM_UTTERANCE_ID, COMMAND_NOT_RECOGNIZED);
 				mTTS.speak("command not recognized", TextToSpeech.QUEUE_FLUSH, mReplies);
+				break;
 			}
 		}	
 	}
