@@ -14,9 +14,11 @@ public class FeedbackService extends IntentService implements TextToSpeech.OnIni
 	protected static final String RESPONSE_STRING = "response string";
 	/* So can differentiate between what needs to be said in TTS */
 	protected HashMap <String, String> mReplies = new HashMap<String, String>();
-	protected TextToSpeech mTts;
+	protected TextToSpeech mTTS;
 	/* Value to determine what needs to be said */
 	protected int mResponse;
+	/*The intent*/
+	Intent mIntent;
 	
 	/** Keys for hash table of replies */
 	protected static final String WORKOUT_ALREADY_STARTED = "workout already started";
@@ -42,7 +44,7 @@ public class FeedbackService extends IntentService implements TextToSpeech.OnIni
 	@Override
 	public void onInit(int status) {
 		if (status == TextToSpeech.SUCCESS) {
-			mTts.setLanguage(Locale.US);
+			mTTS.setLanguage(Locale.US);
 			//handle the intent
 			selectPhrase(mResponse);
 		}
@@ -57,7 +59,7 @@ public class FeedbackService extends IntentService implements TextToSpeech.OnIni
 	@Override
 	public void onDestroy() {
 		Log.w("Feedback Service", "onDestroy");
-		if (!mTts.isSpeaking()) {
+		if (!mTTS.isSpeaking()) {
 			Log.w("FeedbackService", "not speaking");
 			//should always be speaking, acts like an error check
 			destroyTTS();
@@ -67,65 +69,71 @@ public class FeedbackService extends IntentService implements TextToSpeech.OnIni
 	}
 	/** Turn off and destroy TTS */
 	protected void destroyTTS() {
-		mTts.stop();
-		mTts.shutdown();
-		mTts = null;
+		mTTS.stop();
+		mTTS.shutdown();
+		mTTS = null;
 	}
 	/** Callback method */
 	@Override
 	protected void onHandleIntent(Intent intent) {
 		//get data from the incoming intent
-		mResponse = intent.getIntExtra(RESPONSE_STRING, 0);
+		mIntent = intent;
+		mResponse = mIntent.getIntExtra(RESPONSE_STRING, 0);
 	}
 	/** Determines what needs to be said */
 	protected void selectPhrase (int code) {
+		//get the correct string to say if update or stop workout
+		String toSay = "";
+		if (code == Workout.UPDATE_WORKOUT || code == Workout.STOP_WORKOUT) {
+			toSay = mIntent.getStringExtra(Workout.UPDATE_TIME_STRING);
+		}
 		//based on the contents of response, say the appropriate thing
 		switch (mResponse) {
 			case Workout.WORKOUT_ALREADY_STARTED:{
 				mReplies.put(TextToSpeech.Engine.KEY_PARAM_UTTERANCE_ID, WORKOUT_ALREADY_STARTED);
-				mTts.speak("workout has already started", TextToSpeech.QUEUE_FLUSH, mReplies);
+				mTTS.speak("workout has already started", TextToSpeech.QUEUE_FLUSH, mReplies);
 				break;
 			}
 			case Workout.RESUME_WORKOUT:{
 				mReplies.put(TextToSpeech.Engine.KEY_PARAM_UTTERANCE_ID, RESUME_WORKOUT);
-				mTts.speak("continuing workout", TextToSpeech.QUEUE_FLUSH, mReplies);
+				mTTS.speak("continuing workout", TextToSpeech.QUEUE_FLUSH, mReplies);
 				break;
 			}
 			case Workout.STOP_WORKOUT:{
 				mReplies.put(TextToSpeech.Engine.KEY_PARAM_UTTERANCE_ID, STOP_WORKOUT);
-				mTts.speak("stopping workout", TextToSpeech.QUEUE_FLUSH, mReplies);
+				mTTS.speak("stopping workout.  Workout duration:  " + toSay, TextToSpeech.QUEUE_FLUSH, mReplies);
 				break;
 			}
 			
 			case Workout.WORKOUT_ALREADY_FINISHED:{
 				mReplies.put(TextToSpeech.Engine.KEY_PARAM_UTTERANCE_ID, WORKOUT_ALREADY_FINISHED);
-				mTts.speak("you are already done with the workout", TextToSpeech.QUEUE_FLUSH, mReplies);
+				mTTS.speak("you are already done with the workout", TextToSpeech.QUEUE_FLUSH, mReplies);
 				break;
 			}
 			case Workout.UPDATE_WORKOUT:{
 				mReplies.put(TextToSpeech.Engine.KEY_PARAM_UTTERANCE_ID, UPDATE_WORKOUT);
-				mTts.speak("update", TextToSpeech.QUEUE_FLUSH, mReplies);
+				mTTS.speak(toSay + "have elapsed", TextToSpeech.QUEUE_FLUSH, mReplies);
 				break;
 			}
 			case Workout.CREATING_BASELINE:{
 				Log.w("FeedbackService", "creating baseline");
 				mReplies.put(TextToSpeech.Engine.KEY_PARAM_UTTERANCE_ID, CREATING_BASELINE);
-				mTts.speak("creating baseline", TextToSpeech.QUEUE_FLUSH, mReplies);	
+				mTTS.speak("creating baseline", TextToSpeech.QUEUE_FLUSH, mReplies);	
 				break;
 			}
 			case Workout.FINISHED_BASELINE:{
 				mReplies.put(TextToSpeech.Engine.KEY_PARAM_UTTERANCE_ID, FINISHED_BASELINE);
-				mTts.speak("finished baseline recording.  starting workout.", TextToSpeech.QUEUE_FLUSH, mReplies);	
+				mTTS.speak("finished baseline recording.  starting workout.", TextToSpeech.QUEUE_FLUSH, mReplies);	
 				break;
 			}
 			case Workout.SILENCE:{
 				mReplies.put(TextToSpeech.Engine.KEY_PARAM_UTTERANCE_ID, SILENCE);
-				mTts.speak("silence", TextToSpeech.QUEUE_FLUSH, mReplies);
+				mTTS.speak("silence", TextToSpeech.QUEUE_FLUSH, mReplies);
 				break;
 			}
 			case Workout.PAUSE_WORKOUT:{
 				mReplies.put(TextToSpeech.Engine.KEY_PARAM_UTTERANCE_ID, PAUSE_WORKOUT);
-				mTts.speak("pausing workout", TextToSpeech.QUEUE_FLUSH, mReplies);
+				mTTS.speak("pausing workout", TextToSpeech.QUEUE_FLUSH, mReplies);
 			}
 		}	
 	}
@@ -142,8 +150,8 @@ public class FeedbackService extends IntentService implements TextToSpeech.OnIni
 	protected void createTTS() {
 		/*initialize TTS (don't need to check if it is installed because for OS 4.1 and up
 		it is already included.  But maybe do checks here for older versions later */
-		mTts = new TextToSpeech(getApplicationContext(),this);
-		mTts.setOnUtteranceProgressListener(new UtteranceProgressListener() {
+		mTTS = new TextToSpeech(getApplicationContext(),this);
+		mTTS.setOnUtteranceProgressListener(new UtteranceProgressListener() {
 
 			@Override
 			public void onStart(String arg0) {

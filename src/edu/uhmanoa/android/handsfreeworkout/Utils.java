@@ -51,4 +51,56 @@ public class Utils {
 		return stringNumber.length();
 	} 
 	
+	/**Get the correct update string */
+	public static String getUpdate(String inputTime) {
+		int hours = 0;
+		int minutes;
+		int seconds;
+		
+		String correctHour = " hours,";
+		String correctMinute = " minutes and ";
+		String correctSecond = " seconds ";
+		
+		String timeString = "";
+		
+		//MM:SS or H:MM:SS form
+		String[] time = inputTime.split(":");
+		//there are hours
+		if (time.length > 2) {
+			hours = Integer.valueOf(time[0]);
+			minutes = Integer.valueOf(time[1]);
+			seconds = Integer.valueOf(time[2]);
+			if (hours == 1) {
+				correctHour = " hour, ";
+			}
+		}
+		else {
+			minutes = Integer.valueOf(time[0]);
+			seconds = Integer.valueOf(time[1]);
+		}
+
+		if (minutes == 1) {
+			correctMinute = " minute and ";
+		}
+		
+		if (seconds == 1) {
+			correctSecond = " second ";
+		}
+		
+		if (minutes == 0) {
+			timeString = seconds + correctSecond;
+			return timeString;
+		}
+		
+		if (time.length > 2) {
+			timeString = hours + correctHour + minutes + correctMinute + seconds
+					+ correctSecond;
+		}
+		else {
+			timeString = minutes + correctMinute + seconds + correctSecond;
+		}
+		
+		return timeString;
+	}
+	
 }
