@@ -10,8 +10,6 @@ import android.speech.tts.UtteranceProgressListener;
 import android.util.Log;
 
 public class FeedbackService extends IntentService implements TextToSpeech.OnInitListener {
-	/* Name of the string that identifies what the response should be */
-	protected static final String RESPONSE_STRING = "response string";
 	/* So can differentiate between what needs to be said in TTS */
 	protected HashMap <String, String> mReplies = new HashMap<String, String>();
 	protected TextToSpeech mTTS;
@@ -79,7 +77,7 @@ public class FeedbackService extends IntentService implements TextToSpeech.OnIni
 	protected void onHandleIntent(Intent intent) {
 		//get data from the incoming intent
 		mIntent = intent;
-		mResponse = mIntent.getIntExtra(RESPONSE_STRING, 0);
+		mResponse = mIntent.getIntExtra(Workout.RESPONSE_STRING, 0);
 	}
 	/** Determines what needs to be said */
 	protected void selectPhrase (int code) {

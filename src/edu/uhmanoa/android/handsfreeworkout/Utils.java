@@ -103,4 +103,64 @@ public class Utils {
 		return timeString;
 	}
 	
+	/**Format the string for the display clock */
+	public static String getPrettyHybridTime (String time) {
+		int hours = 0;
+		int minutes;
+		int seconds;
+		
+		//case for initial startup
+		if (time == null) {
+			return "0 seconds";
+		}
+		String correctSeconds = " seconds";
+		String timeString = "";
+		
+		//MM:SS or H:MM:SS form
+		String[] timeArray = time.split(":");
+		//there are hours
+		if (timeArray.length > 2) {
+			hours = Integer.valueOf(timeArray[0]);
+			minutes = Integer.valueOf(timeArray[1]);
+			seconds = Integer.valueOf(timeArray[2]);
+		}
+		else {
+			minutes = Integer.valueOf(timeArray[0]);
+			seconds = Integer.valueOf(timeArray[1]);
+		}
+		
+		String secondFormat = "" + seconds;
+		String minuteFormat = "" + minutes;
+		String hourFormat = "" + hours;
+		
+
+		//set this no mater what
+		if (seconds < 10) {
+			secondFormat = "0" + seconds;
+		}
+		
+		if (hours > 0) {
+			if (minutes < 10) {
+				minuteFormat = "0" + minutes;
+			}	
+			timeString = hourFormat + ":" + minuteFormat + ":" + secondFormat;
+		}
+		//just minutes
+		else {
+			if (minutes > 0) {
+				timeString = minuteFormat + ":" + secondFormat;
+			}
+			//just seconds
+			else{
+				secondFormat = "" + seconds;
+				if (seconds == 1) {
+					correctSeconds = " second";
+				}
+				timeString = secondFormat + correctSeconds;
+			}
+		}
+
+		
+		return timeString;
+	}
 }

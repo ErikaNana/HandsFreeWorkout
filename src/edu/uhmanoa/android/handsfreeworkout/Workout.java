@@ -25,6 +25,7 @@ import android.view.View.OnClickListener;
 import android.view.Window;
 import android.widget.Button;
 import android.widget.Chronometer;
+import android.widget.Chronometer.OnChronometerTickListener;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 
@@ -42,6 +43,7 @@ public class Workout extends Activity implements OnClickListener{
 	protected TextView mWelcomeMessage;
 	protected TextView mCommandText;
 	protected Chronometer mTimer; 
+	protected TextView mDisplayClock;
 	
 	protected boolean mSpeechRecAlive;
 	protected boolean mFinished; //if speech recognition heard something
@@ -93,16 +95,31 @@ public class Workout extends Activity implements OnClickListener{
 	protected static final int PAUSE_WORKOUT = 9;
 	protected static final int COMMAND_NOT_RECOGNIZED = 10;
 	
+	/**Modes for display clock*/
+	protected static final int CLASSIC = 1;
+	protected static final int HIPSTER = 2;
+	protected static final int HYBRID = 3;
 	/**Extra for update */
 	protected static final String UPDATE_TIME_STRING = "update value string";
 	/**
 	 * ISSUES TO DEAL WITH STILL:
 	 * accidental loud noises
+	 * 
 	 * start up error with TTS (creating baseline gets cutoff and repeated)
+	 * 
 	 * maybe for baseline, require user to say a phrase for x amount of seconds.  
 	 * if amp is within 5% of that, then it is a command
 	 * 
 	 * error checking (can't allow to say paused twice)
+	 * 
+	 * take out trailing 0 in timer, if it's still seconds just display the number
+	 * and then "seconds" or second after it
+	 * maybe just don't display the chronometer, but instead display a constantly updating
+	 * textView so it can be customized and acts like a timer.  it's like interrupted when
+	 * just got to broadcast receiver, didn't have a chance to startListening()
+	 * 
+	 * deal with when feedback is interrupted (persist feedback if in limbo).  needs to 
+	 * start listening again (use a boolean)
 	 * 
 	 * NOTE: when workout is paused with voice, start button isn't enabled to restart
 	 * it.  when workout is paused with button, start button is enabled to restart
@@ -122,6 +139,7 @@ public class Workout extends Activity implements OnClickListener{
 		//initialize variables
 		mWelcomeMessage = (TextView) findViewById(R.id.welcomeMessage);
 		mCommandText = (TextView) findViewById(R.id.command);
+		mDisplayClock = (TextView) findViewById(R.id.displayClock);
 		
 		mStartButton = (Button) findViewById(R.id.speakButton);
 		mStartButton.setOnClickListener(this);
@@ -234,10 +252,6 @@ public class Workout extends Activity implements OnClickListener{
 			public void onReadyForSpeech(Bundle arg0) {
 				Log.w("Workout", "ready for speech");
 				Log.w("Workout", "counter:  " + mCounter);
-				if (mCounter >= 3) {
-					stopVoiceRec();
-					startResponseService(SILENCE);					
-				}
 			}
 			
 			@Override
@@ -292,12 +306,18 @@ public class Workout extends Activity implements OnClickListener{
 				}
 			}
 			
-			else{
+			else{				
 				mSpeechRec.destroy();
 				startVoiceRec();
 			}
+			if (mCounter < 3) {
+				mHandler.postDelayed(checkSpeechRec, UPDATE_FREQUENCY);			
+			}
+			else {
+				stopVoiceRec();
+				startResponseService(SILENCE);
+			}
 			mCounter +=1;
-			mHandler.postDelayed(checkSpeechRec, UPDATE_FREQUENCY);
 		}
 	};
 	
@@ -370,6 +390,7 @@ public class Workout extends Activity implements OnClickListener{
 		try {
 			mRecorder.prepare();
 			mRecorder.start();
+			mInitialCreate = false;
 			checkMaxAmp.run();
 
 		} catch (IllegalStateException e) {
@@ -547,19 +568,63 @@ public class Workout extends Activity implements OnClickListener{
 		destroyTimer();
 		mTimeWhenStopped = 0;
 	}
+	
+	/**sets the text for the display clock */
+	public void setDisplayClock(int mode) {
+		String time = (String) mTimer.getText();
+		if (!time.equals("")) {
+			switch(mode) {
+				case HIPSTER:{
+					
+				}
+				case HYBRID:{
+					time = Utils.getPrettyHybridTime(time);	
+				}
+				case CLASSIC:{
+					
+				}
+			}	
+			mDisplayClock.setText(time);
+		}	
+	}
+	
+	/** method for persistence .  modes are just for debugging right now*/
+	public void setDisplayClock(int mode, String timerText) {
+		switch(mode) {
+			case HIPSTER:{
+				
+			}
+			case HYBRID:{
+				mDisplayClock.setText(Utils.getPrettyHybridTime(timerText));	
+			}
+			case CLASSIC:{
+				
+			}
+		}	
+	}
+	
 	/** Creates the timer and sets the base time */
 	protected void createTimer() {
 		mTimer = (Chronometer) findViewById(R.id.timer);
+		mTimer.setOnChronometerTickListener(new OnChronometerTickListener() {
+			
+			@Override
+			public void onChronometerTick(Chronometer chronometer) {
+				setDisplayClock(HYBRID);
+			}
+		});
 		/* elapsedRealtime() = returns ms since boot
 		 * best method to use to get current time */
 		if (mInitialCreate) {
 			mTimer.setBase(SystemClock.elapsedRealtime());
 			mTimer.start();
-			mInitialCreate = false;
 		}
 		else {
 			//persisting the timer
 			mTimer.setText(mTimerText);
+			setDisplayClock(HYBRID, mTimerText);
+			//mDisplayClock.setText(Utils.getPrettyHybridTime(mTimerText));
+			
 			if (!mPause) {
 				mCommandText.setText("");	
 				resumeTimer();
@@ -637,7 +702,11 @@ public class Workout extends Activity implements OnClickListener{
 	protected void onResume() {
 		Log.w("Workout", "on resume");
 		//so that can resume, but also considering first run of app
-
+		//set the text of the display clock
+		if (mInitialCreate) {
+			mDisplayClock.setText("0 seconds");
+		}
+		Log.w("Workout","initial create:  "+ mInitialCreate);
 		if (mListeningForCommands) {
 			Log.w("Workout", "listening for commands");
 			startListening();
@@ -767,7 +836,6 @@ public class Workout extends Activity implements OnClickListener{
 		}
 
 	}
-	
 	/**Set the layout font */
 	public void setLayoutFont() {
 		Typeface font = Typeface.createFromAsset(getAssets(), "fonts/Edmondsans-Bold.otf");

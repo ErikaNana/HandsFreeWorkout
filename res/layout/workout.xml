@@ -16,12 +16,22 @@
         android:text="@string/textView_text" 
         android:textSize="@dimen/welcomeTextSize"/>
     
+    <TextView
+        android:id = "@+id/displayClock"
+        android:layout_width="fill_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center"
+        android:paddingLeft = "20dip"
+        android:paddingRight = "20dip" 
+        android:textSize="@dimen/timerTextSize"/>
+    
     <Chronometer
         android:id="@+id/timer"
         android:layout_width="fill_parent"
         android:layout_height="wrap_content"
-        android:gravity="center"
-        android:textSize="@dimen/timerTextSize" />
+        android:visibility="gone"/>
+<!--         android:gravity="center"
+        android:textSize="@dimen/timerTextSize" --> 
     
     <Button
         android:id="@+id/speakButton"
