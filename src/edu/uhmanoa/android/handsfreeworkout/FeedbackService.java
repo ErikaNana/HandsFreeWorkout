@@ -90,7 +90,7 @@ public class FeedbackService extends IntentService implements TextToSpeech.OnIni
 		switch (mResponse) {
 			case Workout.WORKOUT_ALREADY_STARTED:{
 				mReplies.put(TextToSpeech.Engine.KEY_PARAM_UTTERANCE_ID, WORKOUT_ALREADY_STARTED);
-				mTTS.speak("workout has already started", TextToSpeech.QUEUE_FLUSH, mReplies);
+				mTTS.speak("workout is in progress", TextToSpeech.QUEUE_FLUSH, mReplies);
 				break;
 			}
 			case Workout.RESUME_WORKOUT:{

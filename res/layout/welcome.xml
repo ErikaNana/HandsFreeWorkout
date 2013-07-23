@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:id="@+id/welcome_layout"
+    android:layout_height="match_parent"
+    android:orientation="vertical" 
+    android:gravity="center">
+    
+	<TextView
+        android:id = "@+id/welcomeMessage"
+        android:layout_width="fill_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="30dip"
+        android:paddingLeft = "40dip"
+        android:paddingRight = "40dip" 
+        android:text="@string/textView_text" 
+        android:textSize="@dimen/welcomeTextSize"
+        android:gravity = "center"/>
+
+	<Button
+	    android:id="@+id/speakButton"
+	    android:layout_width="fill_parent"
+	    android:layout_height="wrap_content"
+	    android:layout_centerVertical="true"
+	    android:background="@android:color/transparent"
+	    android:paddingLeft="4dip"
+	    android:paddingRight="4dip"
+	    android:text="@string/startButton_initial_text"
+	    android:textSize="@dimen/initialStartTextSize" />
+
+</RelativeLayout>

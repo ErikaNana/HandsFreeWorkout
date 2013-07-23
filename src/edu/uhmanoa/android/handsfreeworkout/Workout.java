@@ -171,6 +171,10 @@ public class Workout extends Activity implements OnClickListener{
 			mStartButton.setText("Recognizer not present");
 		}
 		mCheckBaseline = true;
+		
+		//automatically start the program
+		startResponseService(CREATING_BASELINE);
+		mStartButton.setEnabled(false);
 	}
 	
 	/* Start voice recognition */
@@ -499,13 +503,13 @@ public class Workout extends Activity implements OnClickListener{
 		switch (view.getId()){
 			case(R.id.speakButton):{
 				//to be safe
-				mStartButton.setEnabled(false);
+/*				mStartButton.setEnabled(false);
 				Log.w("Workout", "speak button is pressed");
 				//inform user of baseline reading
 				if (mCheckBaseline) {
 					startResponseService(CREATING_BASELINE);
-				}
-				else {
+				}*/
+/*				else {
 					//redundant code
 					if (mPause) {
 						resumeTimer();
@@ -514,6 +518,13 @@ public class Workout extends Activity implements OnClickListener{
 					else {
 						startResponseService(RESUME_WORKOUT);
 					}
+				}*/
+				if (mPause) {
+					resumeTimer();
+					startResponseService(RESUME_WORKOUT);
+				}
+				else {
+					startResponseService(RESUME_WORKOUT);
 				}
 				break;
 			}
@@ -706,6 +717,7 @@ public class Workout extends Activity implements OnClickListener{
 		if (mInitialCreate) {
 			mDisplayClock.setText("0 seconds");
 		}
+		
 		Log.w("Workout","initial create:  "+ mInitialCreate);
 		if (mListeningForCommands) {
 			Log.w("Workout", "listening for commands");
@@ -839,7 +851,7 @@ public class Workout extends Activity implements OnClickListener{
 	/**Set the layout font */
 	public void setLayoutFont() {
 		Typeface font = Typeface.createFromAsset(getAssets(), "fonts/Edmondsans-Bold.otf");
-		LinearLayout layout = (LinearLayout) findViewById(R.id.layout);
+		LinearLayout layout = (LinearLayout) findViewById(R.id.workout_layout);
 		int count= layout.getChildCount();
 		for (int i = 0; i < count; i++) {
 			View view = layout.getChildAt(i);
