@@ -44,6 +44,7 @@ public class Workout extends Activity implements OnClickListener{
 	protected TextView mCommandText;
 	protected Chronometer mTimer; 
 	protected TextView mDisplayClock;
+	protected FinishedSpeakingReceiver mReceiver;
 	
 	protected boolean mSpeechRecAlive;
 	protected boolean mFinished; //if speech recognition heard something
@@ -53,9 +54,9 @@ public class Workout extends Activity implements OnClickListener{
 	protected int mBaselineAmp;
 	protected int mCounter;
 	protected boolean mPause;
-	protected FinishedSpeakingReceiver mReceiver;
 	protected long mTimeWhenStopped;
 	protected String mTimerText;
+	protected String mStoppedTimerText;
 	protected boolean mInitialCreate; //determines if app is in initial creation state
 	
 	/** Keys for saving and restoring instance data */
@@ -373,6 +374,11 @@ public class Workout extends Activity implements OnClickListener{
 		Log.w("Workout", "mSpeechRec:  " + mSpeechRec);
 		mListeningForCommands = true;
 		Log.w("Workout", "start listening");
+
+		//reset the stopped time text
+		if (mStoppedTimerText != null) {
+			mStoppedTimerText = null;
+		}
 		//for persistence
 		if (!mPause) {
 			mStartButton.setEnabled(false);
@@ -558,6 +564,7 @@ public class Workout extends Activity implements OnClickListener{
 			mPauseButton.setEnabled(true);
 		}
 		mPause = false;
+		mStoppedTimerText = (String) mTimer.getText();
 		destroyTimer();
 		mTimeWhenStopped = 0;
 	}
@@ -618,7 +625,6 @@ public class Workout extends Activity implements OnClickListener{
 			//persisting the timer
 			mTimer.setText(mTimerText);
 			setDisplayClock(HYBRID, mTimerText);
-
 			
 			if (!mPause) {
 				mCommandText.setText("");	
@@ -715,8 +721,18 @@ public class Workout extends Activity implements OnClickListener{
 				startListening();
 			}
 			else {
-				//persist the time (like in stopped state) just for show
+				//persist the time 
 				mDisplayClock.setText(Utils.getPrettyHybridTime(mTimerText));
+				if (mStoppedTimerText != null) {
+					mDisplayClock.setText(Utils.getPrettyHybridTime(mStoppedTimerText));
+				}
+				//prevent accidental clicks
+				if(mPauseButton.isEnabled()) {
+					mPauseButton.setEnabled(false);
+				}
+				if (mStopButton.isEnabled()) {
+					mStopButton.setEnabled(false);
+				}
 			}
 		}
 		else {
@@ -757,6 +773,7 @@ public class Workout extends Activity implements OnClickListener{
 		outState.putInt(SAVED_COUNTER, mCounter);
 		outState.putBoolean(SAVED_PAUSE, mPause);
 		outState.putString(SAVED_PAUSE_COMMAND_TEXT, (String) mCommandText.getText());
+		outState.putString(SAVED_STOP_TIMER_TEXT, mStoppedTimerText);
 		
 		Log.w("Workout", "(save) doing speechRec:  " + mDoingVoiceRec);
 		Log.w("Workout", "(save) listening for commands:  " + mListeningForCommands);
@@ -789,6 +806,7 @@ public class Workout extends Activity implements OnClickListener{
 		mCounter = savedInstanceState.getInt(SAVED_COUNTER);
 		mPause = savedInstanceState.getBoolean(SAVED_PAUSE);
 		mCommandText.setText(savedInstanceState.getString(SAVED_PAUSE_COMMAND_TEXT));
+		mStoppedTimerText = savedInstanceState.getString(SAVED_STOP_TIMER_TEXT);
 
 		Log.w("Workout", "(restore) doing speechRec:  " + mDoingVoiceRec);
 /*		Log.w("Workout", "(restore) listening for commands:  " + mListeningForCommands);*/

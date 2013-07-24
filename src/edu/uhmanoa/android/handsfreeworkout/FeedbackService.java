@@ -57,13 +57,6 @@ public class FeedbackService extends IntentService implements TextToSpeech.OnIni
 	
 	@Override
 	public void onDestroy() {
-		Log.w("Feedback Service", "onDestroy");
-		if (!mTTS.isSpeaking()) {
-			Log.e("FeedbackService", "not speaking");
-/*			//should always be speaking, acts like an error check
-			destroyTTS();
-			createTTS();*/
-		}
 		super.onDestroy();
 	}
 	/** Turn off and destroy TTS */
@@ -173,11 +166,10 @@ public class FeedbackService extends IntentService implements TextToSpeech.OnIni
 			public void onDone(String utteranceID) {
 				String id = utteranceID;
 				Log.e("Workout", "utterance:  " + utteranceID);
-				/* just need to announce the start here because when it is done it 
-				 * destroys the TTS object, so can't announce stop */
+				//being a good citizen
+				destroyTTS();
+				
 				if (id.equals(STOP_WORKOUT)) {
-					//being a good citizen
-					destroyTTS();
 					announceFinished(STOP);
 				}
 				else {
