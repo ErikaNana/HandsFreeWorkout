@@ -8,6 +8,6 @@
     <string name ="startButton_initial_text">Start</string>
     <string name="stopButton_text">Stop</string>
     <string name="pauseButton_text">Pause</string>
-    <string name="initialTime">O seconds</string>
+    <string name="initialTime">0 seconds</string>
 
 </resources>
