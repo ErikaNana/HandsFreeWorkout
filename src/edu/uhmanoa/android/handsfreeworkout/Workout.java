@@ -96,6 +96,7 @@ public class Workout extends Activity implements OnClickListener{
 	protected static final int SILENCE = 8;
 	protected static final int PAUSE_WORKOUT = 9;
 	protected static final int COMMAND_NOT_RECOGNIZED = 10;
+	protected static final int START_WORKOUT = 11;
 	
 	/**Modes for display clock*/
 	protected static final int CLASSIC = 1;
@@ -292,7 +293,6 @@ public class Workout extends Activity implements OnClickListener{
 		mHandler.removeCallbacks(checkSpeechRec);
 		mSpeechRec.destroy();
 		mSpeechRec = null;
-		mCounter = 0;
 	}
 	/** A Handler takes in a Runnable object and schedules its execution; it places the
 	 * runnable process as a job in an execution queue to be run after a specified amount
@@ -304,6 +304,7 @@ public class Workout extends Activity implements OnClickListener{
 		
 		@Override
 		public void run() {
+			mCounter +=1;
 			Log.w("Workout", "checking if alive");
 			if (mSpeechRecAlive) {
 				if (mFinished) {
@@ -318,17 +319,15 @@ public class Workout extends Activity implements OnClickListener{
 				mSpeechRec.destroy();
 				startVoiceRec();
 			}
-			if (mCounter < 3) {
+			if (mCounter < 4) {
 				mHandler.postDelayed(checkSpeechRec, UPDATE_FREQUENCY);			
 			}
-			if (mCounter >= 3) {
+			if (mCounter >= 4) {
 				stopVoiceRec();
 				Log.w("WORKOUT", "SILENCE");
 				//reset mCounter
-				mCounter = 0;
 				startResponseService(SILENCE);
 			}
-			mCounter +=1;
 		}
 	};
 	
@@ -738,7 +737,7 @@ public class Workout extends Activity implements OnClickListener{
 		else {
 			//initial create
 			Log.w("Workout", "initial create");
-			startListening();
+			startResponseService(START_WORKOUT);
 		}
 		
 		//create IntentFilter to match with FINISHED_SPEAKING action
@@ -809,7 +808,7 @@ public class Workout extends Activity implements OnClickListener{
 		mStoppedTimerText = savedInstanceState.getString(SAVED_STOP_TIMER_TEXT);
 
 		Log.w("Workout", "(restore) doing speechRec:  " + mDoingVoiceRec);
-/*		Log.w("Workout", "(restore) listening for commands:  " + mListeningForCommands);*/
+		Log.w("Workout", "(restore) listening for commands:  " + mListeningForCommands);
 		Log.w("Workout", "(restore) timer text:  " + mTimerText);
 		Log.w("Workout", "(restore) time when stopped text:  " + mTimeWhenStopped);
 		Log.w("Workout", "(restore) initial create:  " + mInitialCreate);
@@ -837,6 +836,9 @@ public class Workout extends Activity implements OnClickListener{
 		mStartButton.setEnabled(false);
 		mStopButton.setEnabled(false);
 		mPauseButton.setEnabled(false);
+		
+		//reset speechRec counter
+		mCounter = 0;
 		this.startService(intent); 
 	}
 	
@@ -882,7 +884,6 @@ public class Workout extends Activity implements OnClickListener{
 			}
 		
 		}
-
 	}
 	/**Set the layout font */
 	public void setLayoutFont() {

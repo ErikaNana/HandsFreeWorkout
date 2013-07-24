@@ -29,6 +29,7 @@ public class FeedbackService extends IntentService implements TextToSpeech.OnIni
 	protected static final String SILENCE = "silence";
 	protected static final String PAUSE_WORKOUT = "pause workout";
 	protected static final String COMMAND_NOT_RECOGNIZED = "command not recognized";
+	protected static final String START_WORKOUT = "start workout";
 	
 	/**Intent extra for the the broadcast receiver */
 	protected static final String START_STOP = "start stop workout";
@@ -81,6 +82,11 @@ public class FeedbackService extends IntentService implements TextToSpeech.OnIni
 		}
 		//based on the contents of response, say the appropriate thing
 		switch (mResponse) {
+			case Workout.START_WORKOUT:{
+				mReplies.put(TextToSpeech.Engine.KEY_PARAM_UTTERANCE_ID, START_WORKOUT);
+				mTTS.speak("begin workout", TextToSpeech.QUEUE_FLUSH, mReplies);
+				break;				
+			}
 			case Workout.WORKOUT_ALREADY_STARTED:{
 				mReplies.put(TextToSpeech.Engine.KEY_PARAM_UTTERANCE_ID, WORKOUT_ALREADY_STARTED);
 				mTTS.speak("workout is in progress", TextToSpeech.QUEUE_FLUSH, mReplies);
@@ -138,6 +144,7 @@ public class FeedbackService extends IntentService implements TextToSpeech.OnIni
 	/**Broadcast that speaking has finished.  Specifies whether or not to start/stop
 	 * the workout based on what has been said in the intent */
 	protected void announceFinished(String action) {
+		Log.w("FBS", "announcing:  " + action);
 		Intent announce = new Intent(Workout.FinishedSpeakingReceiver.FINISHED_SPEAKING);
 		announce.putExtra(START_STOP, action);
 		//broadcast with default category
@@ -173,7 +180,6 @@ public class FeedbackService extends IntentService implements TextToSpeech.OnIni
 					announceFinished(STOP);
 				}
 				else {
-					destroyTTS();
 					announceFinished(START);
 				}
 			}
