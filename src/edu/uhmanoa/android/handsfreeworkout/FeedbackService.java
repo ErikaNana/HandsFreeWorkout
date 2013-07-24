@@ -59,10 +59,10 @@ public class FeedbackService extends IntentService implements TextToSpeech.OnIni
 	public void onDestroy() {
 		Log.w("Feedback Service", "onDestroy");
 		if (!mTTS.isSpeaking()) {
-			Log.w("FeedbackService", "not speaking");
-			//should always be speaking, acts like an error check
+			Log.e("FeedbackService", "not speaking");
+/*			//should always be speaking, acts like an error check
 			destroyTTS();
-			createTTS();
+			createTTS();*/
 		}
 		super.onDestroy();
 	}
@@ -165,7 +165,7 @@ public class FeedbackService extends IntentService implements TextToSpeech.OnIni
 			
 			@Override
 			public void onError(String arg0) {
-				//don't need
+				Log.e("FBS", "on Error");
 				
 			}
 			/**need this so speech recognition doesn't pick up on the feedback */
@@ -181,6 +181,7 @@ public class FeedbackService extends IntentService implements TextToSpeech.OnIni
 					announceFinished(STOP);
 				}
 				else {
+					destroyTTS();
 					announceFinished(START);
 				}
 			}
