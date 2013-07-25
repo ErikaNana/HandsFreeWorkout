@@ -4,6 +4,10 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
+import edu.uhmanoa.android.handsfreeworkout.customcomponents.CustomButton;
+import edu.uhmanoa.android.handsfreeworkout.customcomponents.Timer;
+import edu.uhmanoa.android.handsfreeworkout.services.FeedbackService;
+
 import android.app.Activity;
 import android.content.BroadcastReceiver;
 import android.content.Context;
@@ -83,27 +87,27 @@ public class Workout extends Activity implements OnClickListener{
 	protected static final long BASELINE_FREQUENCY = 1000L;
 	
 	/** Name of the string that identifies what the response should be */
-	protected static final String RESPONSE_STRING = "response string";
+	public static final String RESPONSE_STRING = "response string";
 	
 	/** Codes for the response that feedback should say */
-	protected static final int WORKOUT_ALREADY_STARTED = 1;
-	protected static final int STOP_WORKOUT = 2;
-	protected static final int WORKOUT_ALREADY_FINISHED = 3;
-	protected static final int UPDATE_WORKOUT = 4;
-	protected static final int CREATING_BASELINE = 5;
-	protected static final int FINISHED_BASELINE = 6;
-	protected static final int RESUME_WORKOUT = 7;
-	protected static final int SILENCE = 8;
-	protected static final int PAUSE_WORKOUT = 9;
-	protected static final int COMMAND_NOT_RECOGNIZED = 10;
-	protected static final int START_WORKOUT = 11;
+	public static final int WORKOUT_ALREADY_STARTED = 1;
+	public static final int STOP_WORKOUT = 2;
+	public static final int WORKOUT_ALREADY_FINISHED = 3;
+	public static final int UPDATE_WORKOUT = 4;
+	public static final int CREATING_BASELINE = 5;
+	public static final int FINISHED_BASELINE = 6;
+	public static final int RESUME_WORKOUT = 7;
+	public static final int SILENCE = 8;
+	public static final int PAUSE_WORKOUT = 9;
+	public static final int COMMAND_NOT_RECOGNIZED = 10;
+	public static final int START_WORKOUT = 11;
 	
 	/**Modes for display clock*/
 	protected static final int CLASSIC = 1;
 	protected static final int HIPSTER = 2;
 	protected static final int HYBRID = 3;
 	/**Extra for update */
-	protected static final String UPDATE_TIME_STRING = "update value string";
+	public static final String UPDATE_TIME_STRING = "update value string";
 	/**
 	 * ISSUES TO DEAL WITH STILL:
 	 * accidental loud noises
@@ -547,6 +551,8 @@ public class Workout extends Activity implements OnClickListener{
 		mPause = false;
 		mStoppedTimerText = (String) mTimer.getText();
 		destroyTimer();
+		//reset mTimerText to default
+		mTimerText = "0 seconds";
 		mTimeWhenStopped = 0;
 	}
 	
@@ -628,8 +634,8 @@ public class Workout extends Activity implements OnClickListener{
 	/*Resumes the timer */
 	public void resumeTimer() {
 		//adjust the timer to the correct time
-		mTimer.setCorrectBaseAndStart(mInitialCreate, mPause, mTimeWhenStopped, mTimerText);
 		mPause = false;
+		mTimer.setCorrectBaseAndStart(mInitialCreate, mPause, mTimeWhenStopped, mTimerText);
 		mPauseButton.turnOn();
 	}
 	/** Called when activity is interrupted, like orientation change */
@@ -804,7 +810,7 @@ public class Workout extends Activity implements OnClickListener{
 	
 	/** Broadcast Receiver for FeedbackService */
 	public class FinishedSpeakingReceiver extends BroadcastReceiver {
-		public static final String FINISHED_SPEAKING = "edu.uhmanoa.android.handsfreeworkout.MESSAGE_PROCESSED";
+		public static final String FINISHED_SPEAKING = "FINISHED_SPEAKING";
 		@Override
 		public void onReceive(Context context, Intent intent) {
 			Log.w("Workout", "broadcast received");

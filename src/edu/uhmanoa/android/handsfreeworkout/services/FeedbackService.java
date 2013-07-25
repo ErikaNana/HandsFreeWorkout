@@ -1,4 +1,4 @@
-package edu.uhmanoa.android.handsfreeworkout;
+package edu.uhmanoa.android.handsfreeworkout.services;
 
 import java.util.HashMap;
 import java.util.Locale;
@@ -8,6 +8,7 @@ import android.content.Intent;
 import android.speech.tts.TextToSpeech;
 import android.speech.tts.UtteranceProgressListener;
 import android.util.Log;
+import edu.uhmanoa.android.handsfreeworkout.Workout;
 
 public class FeedbackService extends IntentService implements TextToSpeech.OnInitListener {
 	/* So can differentiate between what needs to be said in TTS */
@@ -32,9 +33,9 @@ public class FeedbackService extends IntentService implements TextToSpeech.OnIni
 	protected static final String START_WORKOUT = "start workout";
 	
 	/**Intent extra for the the broadcast receiver */
-	protected static final String START_STOP = "start stop workout";
-	protected static final String START = "start";
-	protected static final String STOP = "stop";
+	public static final String START_STOP = "start stop workout";
+	public static final String START = "start";
+	public static final String STOP = "stop";
 	
 
 	public FeedbackService() {

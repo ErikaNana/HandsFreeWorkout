@@ -17,25 +17,25 @@
         android:textSize="@dimen/timerTextSize"
         android:text="@string/initialTime" />
     
-    <edu.uhmanoa.android.handsfreeworkout.Timer
+    <edu.uhmanoa.android.handsfreeworkout.customcomponents.Timer
         android:id="@+id/timer"
         android:layout_width="fill_parent"
         android:layout_height="wrap_content"
         android:visibility="gone"/>
     
-    <edu.uhmanoa.android.handsfreeworkout.CustomButton
+    <edu.uhmanoa.android.handsfreeworkout.customcomponents.CustomButton
         android:id="@+id/speakButton"
         android:layout_width="fill_parent"
         android:layout_height="wrap_content"
         android:text="@string/startButton_text" />
  
-    <edu.uhmanoa.android.handsfreeworkout.CustomButton
+    <edu.uhmanoa.android.handsfreeworkout.customcomponents.CustomButton
         android:id="@+id/pauseButton"
         android:layout_width="fill_parent"
         android:layout_height="wrap_content"
         android:text="@string/pauseButton_text" />
         
-    <edu.uhmanoa.android.handsfreeworkout.CustomButton
+    <edu.uhmanoa.android.handsfreeworkout.customcomponents.CustomButton
         android:id="@+id/stopButton"
         android:layout_width="fill_parent"
         android:layout_height="wrap_content"

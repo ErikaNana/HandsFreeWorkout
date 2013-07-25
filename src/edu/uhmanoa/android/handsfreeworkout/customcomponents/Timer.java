@@ -1,15 +1,12 @@
-package edu.uhmanoa.android.handsfreeworkout;
+package edu.uhmanoa.android.handsfreeworkout.customcomponents;
 
 import android.content.Context;
 import android.os.SystemClock;
 import android.util.AttributeSet;
+import android.util.Log;
 import android.widget.Chronometer;
 
 public class Timer extends Chronometer{
-	protected boolean mInitialCreate;
-	protected boolean mPause;
-	protected String mTimerText;
-	protected long mTimeWhenStopped;
 	
 	public Timer(Context context) {
 		super(context);
@@ -21,6 +18,10 @@ public class Timer extends Chronometer{
 	
 	/** Sets the correct base for the timer and runs it */
 	public void setCorrectBaseAndStart(boolean initialCreate, boolean pause, long timeWhenStopped, String timerText) {
+/*		Log.w("CustomTimer", "initialCreate:  " + initialCreate);
+		Log.w("CustomTimer", "pause:  " + pause);
+		Log.w("CustomTimer", "timeWhenStopped:  " + timeWhenStopped);
+		Log.w("CustomTimer", "timerText:  " + timerText);*/
 		//if initial start up
 		if (initialCreate) {
 			//use "this" keyword because modifying the current object
@@ -29,7 +30,7 @@ public class Timer extends Chronometer{
 		}
 		else {
 			this.setText(timerText);
-			if (!mPause) {
+			if (!pause) {
 				/* elapsedRealtime() = returns ms since boot
 				 * best method to use to get current time */
 				this.setBase(SystemClock.elapsedRealtime() + timeWhenStopped);

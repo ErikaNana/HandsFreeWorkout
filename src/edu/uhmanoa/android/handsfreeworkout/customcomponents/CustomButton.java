@@ -1,4 +1,4 @@
-package edu.uhmanoa.android.handsfreeworkout;
+package edu.uhmanoa.android.handsfreeworkout.customcomponents;
 
 import android.content.Context;
 import android.graphics.Color;

@@ -164,8 +164,6 @@ public class Utils {
 				timeString = secondFormat + correctSeconds;
 			}
 		}
-
-		
 		return timeString;
 	}
 }
