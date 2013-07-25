@@ -6,13 +6,13 @@ import android.util.AttributeSet;
 import android.util.Log;
 import android.widget.Chronometer;
 
-public class Timer extends Chronometer{
+public class CustomTimer extends Chronometer{
 	
-	public Timer(Context context) {
+	public CustomTimer(Context context) {
 		super(context);
 	}
 	
-	public Timer(Context context, AttributeSet attrs) {
+	public CustomTimer(Context context, AttributeSet attrs) {
 		super(context, attrs);
 	}
 	

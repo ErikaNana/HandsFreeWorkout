@@ -6,7 +6,7 @@ import java.util.List;
 
 import edu.uhmanoa.android.handsfreeworkout.R;
 import edu.uhmanoa.android.handsfreeworkout.customcomponents.CustomButton;
-import edu.uhmanoa.android.handsfreeworkout.customcomponents.Timer;
+import edu.uhmanoa.android.handsfreeworkout.customcomponents.CustomTimer;
 import edu.uhmanoa.android.handsfreeworkout.services.FeedbackService;
 import edu.uhmanoa.android.handsfreeworkout.utils.Utils;
 
@@ -48,7 +48,7 @@ public class Workout extends Activity implements OnClickListener{
 	protected CustomButton mPauseButton;
 	protected TextView mWelcomeMessage;
 	protected TextView mCommandText;
-	protected Timer mTimer; 
+	protected CustomTimer mTimer; 
 	protected TextView mDisplayClock;
 	protected FinishedSpeakingReceiver mReceiver;
 	
@@ -594,7 +594,7 @@ public class Workout extends Activity implements OnClickListener{
 	/** Creates the timer and sets the base time */
 	protected void createTimer() {
 		Log.w("Workout", "create timer");
-		mTimer = (Timer) findViewById(R.id.timer);
+		mTimer = (CustomTimer) findViewById(R.id.timer);
 		mTimer.setOnChronometerTickListener(new OnChronometerTickListener() {
 			
 			@Override

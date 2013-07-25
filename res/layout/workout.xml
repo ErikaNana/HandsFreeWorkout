@@ -17,7 +17,7 @@
         android:textSize="@dimen/timerTextSize"
         android:text="@string/initialTime" />
     
-    <edu.uhmanoa.android.handsfreeworkout.customcomponents.Timer
+    <edu.uhmanoa.android.handsfreeworkout.customcomponents.CustomTimer
         android:id="@+id/timer"
         android:layout_width="fill_parent"
         android:layout_height="wrap_content"
