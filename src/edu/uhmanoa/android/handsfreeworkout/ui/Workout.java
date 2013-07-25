@@ -1,9 +1,10 @@
-package edu.uhmanoa.android.handsfreeworkout;
+package edu.uhmanoa.android.handsfreeworkout.ui;
 
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
+import edu.uhmanoa.android.handsfreeworkout.R;
 import edu.uhmanoa.android.handsfreeworkout.customcomponents.CustomButton;
 import edu.uhmanoa.android.handsfreeworkout.customcomponents.Timer;
 import edu.uhmanoa.android.handsfreeworkout.services.FeedbackService;

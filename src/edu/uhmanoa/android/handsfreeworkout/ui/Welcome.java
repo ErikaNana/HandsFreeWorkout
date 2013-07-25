@@ -1,4 +1,5 @@
-package edu.uhmanoa.android.handsfreeworkout;
+package edu.uhmanoa.android.handsfreeworkout.ui;
+import edu.uhmanoa.android.handsfreeworkout.R;
 import android.app.Activity;
 import android.content.Intent;
 import android.graphics.Typeface;

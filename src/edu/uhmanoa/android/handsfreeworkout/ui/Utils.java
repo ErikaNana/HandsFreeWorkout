@@ -1,4 +1,4 @@
-package edu.uhmanoa.android.handsfreeworkout;
+package edu.uhmanoa.android.handsfreeworkout.ui;
 
 import java.io.File;
 import java.util.ArrayList;

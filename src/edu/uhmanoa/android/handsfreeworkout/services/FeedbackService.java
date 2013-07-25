@@ -8,7 +8,7 @@ import android.content.Intent;
 import android.speech.tts.TextToSpeech;
 import android.speech.tts.UtteranceProgressListener;
 import android.util.Log;
-import edu.uhmanoa.android.handsfreeworkout.Workout;
+import edu.uhmanoa.android.handsfreeworkout.ui.Workout;
 
 public class FeedbackService extends IntentService implements TextToSpeech.OnInitListener {
 	/* So can differentiate between what needs to be said in TTS */
