@@ -8,6 +8,7 @@ import edu.uhmanoa.android.handsfreeworkout.R;
 import edu.uhmanoa.android.handsfreeworkout.customcomponents.CustomButton;
 import edu.uhmanoa.android.handsfreeworkout.customcomponents.Timer;
 import edu.uhmanoa.android.handsfreeworkout.services.FeedbackService;
+import edu.uhmanoa.android.handsfreeworkout.utils.Utils;
 
 import android.app.Activity;
 import android.content.BroadcastReceiver;
