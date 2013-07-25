@@ -815,7 +815,6 @@ public class Workout extends Activity implements OnClickListener{
 					//for a flash effect, but for pause want text to remain until start again
 					if(!mPause) { //still doing the workout
 						mCommandText.setText("");
-						//turn on pause button
 						mPauseButton.turnOn();
 					}
 					if (mPause) {
