@@ -37,12 +37,12 @@ public class Workout extends Activity implements OnClickListener{
 	protected Handler mHandler; //handler that handles the voice rec and speech rec checks
 	protected MediaRecorder mRecorder; //recorder that listens for a command
 	protected ArrayList<Integer> mAverage; 
-	protected Button mStartButton; 
-	protected Button mStopButton;
-	protected Button mPauseButton;
+	protected CustomButton mStartButton; 
+	protected CustomButton mStopButton;
+	protected CustomButton mPauseButton;
 	protected TextView mWelcomeMessage;
 	protected TextView mCommandText;
-	protected Chronometer mTimer; 
+	protected Timer mTimer; 
 	protected TextView mDisplayClock;
 	protected FinishedSpeakingReceiver mReceiver;
 	
@@ -108,24 +108,9 @@ public class Workout extends Activity implements OnClickListener{
 	 * ISSUES TO DEAL WITH STILL:
 	 * accidental loud noises
 	 * 
-	 * start up error with TTS (creating baseline gets cutoff and repeated)
-	 * 
 	 * maybe for baseline, require user to say a phrase for x amount of seconds.  
 	 * if amp is within 5% of that, then it is a command
-	 * 
-	 * error checking (can't allow to say paused twice)
-	 * 
-	 * persist pause
-	 * 
-	 * need to be able to stop workout even during voice rec or feedback
-	 * 
-	 * figure out why can't use voice feedback for button implementations of pause/resume
-	 * 
-	 * deal with when feedback is interrupted (persist feedback if in limbo).  needs to 
-	 * start listening again (use a boolean)
-	 * 
-	 * NOTE: when workout is paused with voice, start button isn't enabled to restart
-	 * it.  when workout is paused with button, start button is enabled to restart
+	 *
 	 */
 	
 	
@@ -145,17 +130,15 @@ public class Workout extends Activity implements OnClickListener{
 		mCommandText = (TextView) findViewById(R.id.command);
 		mDisplayClock = (TextView) findViewById(R.id.displayClock);
 		
-		mStartButton = (Button) findViewById(R.id.speakButton);
+		mStartButton = (CustomButton) findViewById(R.id.speakButton);
 		mStartButton.setOnClickListener(this);
 		
-		mStopButton = (Button) findViewById(R.id.stopButton);
+		mStopButton = (CustomButton) findViewById(R.id.stopButton);
 		mStopButton.setOnClickListener(this);
-
-		
-		mPauseButton = (Button) findViewById(R.id.pauseButton);
+	
+		mPauseButton = (CustomButton) findViewById(R.id.pauseButton);
 		mPauseButton.setOnClickListener(this);
 		
-
 		mHandler = new Handler();
 		mSpeechRecAlive = false;
 		mAverage = new ArrayList<Integer>();
@@ -172,7 +155,7 @@ public class Workout extends Activity implements OnClickListener{
 		 *                             if you  start the intent using startActivityForResult(Intent, int))*/
 		List<ResolveInfo> activities = pm.queryIntentActivities(new Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH), 0);
 		if (activities.size() == 0) {
-			mStartButton.setEnabled(false);
+			mStartButton.turnOff();
 			mStartButton.setText("Recognizer not present");
 		}
 	}
@@ -189,7 +172,7 @@ public class Workout extends Activity implements OnClickListener{
 			createTimer();
 		}
 		mDoingVoiceRec = true;
-		mStartButton.setEnabled(false);
+		mStartButton.turnOff();
 		mSpeechRec = SpeechRecognizer.createSpeechRecognizer(this);
 		mSpeechRecListen = new RecognitionListener() {
 			
@@ -380,7 +363,7 @@ public class Workout extends Activity implements OnClickListener{
 		}
 		//for persistence
 		if (!mPause) {
-			mStartButton.setEnabled(false);
+			mStartButton.turnOff();
 		}
 		if (mTimer == null) {
 			Log.w("Workout","mTimer is null");
@@ -468,7 +451,7 @@ public class Workout extends Activity implements OnClickListener{
 					if (mPause) {
 						//if it's stopped, start it (for pause case, and need to say "Start" first)
 						Log.w("Workout", "timer is stopped");
-						resumeTimer();
+						resumeTimer();						
 						Log.w("WORKOUT", "RESUME WORKOUT");
 						startResponseService(RESUME_WORKOUT);
 					}
@@ -555,13 +538,12 @@ public class Workout extends Activity implements OnClickListener{
 					stopVoiceRec();
 				}
 			}
-			mStartButton.setEnabled(true);
+			//turn on start button
+			mStartButton.turnOn();
 		}
 		//reset everything
 		mAverage.clear();
-		if (!mPauseButton.isEnabled()) {
-			mPauseButton.setEnabled(true);
-		}
+		mPauseButton.turnOn();
 		mPause = false;
 		mStoppedTimerText = (String) mTimer.getText();
 		destroyTimer();
@@ -570,17 +552,18 @@ public class Workout extends Activity implements OnClickListener{
 	
 	/**sets the text for the display clock */
 	public void setDisplayClock(int mode) {
+		if(mTimer == null) {
+			Log.w("Workout", "(set display clock) timer is null");
+		}
 		String time = (String) mTimer.getText();
 		if (!time.equals("")) {
 			switch(mode) {
-				case HIPSTER:{
-					
+				case HIPSTER:{				
 				}
 				case HYBRID:{
 					time = Utils.getPrettyHybridTime(time);	
 				}
-				case CLASSIC:{
-					
+				case CLASSIC:{				
 				}
 			}	
 			mDisplayClock.setText(time);
@@ -590,21 +573,20 @@ public class Workout extends Activity implements OnClickListener{
 	/** method for persistence .  modes are just for debugging right now*/
 	public void setDisplayClock(int mode, String timerText) {
 		switch(mode) {
-			case HIPSTER:{
-				
+			case HIPSTER:{				
 			}
 			case HYBRID:{
 				mDisplayClock.setText(Utils.getPrettyHybridTime(timerText));	
 			}
-			case CLASSIC:{
-				
+			case CLASSIC:{			
 			}
 		}	
 	}
 	
 	/** Creates the timer and sets the base time */
 	protected void createTimer() {
-		mTimer = (Chronometer) findViewById(R.id.timer);
+		Log.w("Workout", "create timer");
+		mTimer = (Timer) findViewById(R.id.timer);
 		mTimer.setOnChronometerTickListener(new OnChronometerTickListener() {
 			
 			@Override
@@ -612,27 +594,14 @@ public class Workout extends Activity implements OnClickListener{
 				setDisplayClock(HYBRID);
 			}
 		});
-		/* elapsedRealtime() = returns ms since boot
-		 * best method to use to get current time */
-		if (mInitialCreate) {
-			Log.w("Workout","initial create in createTimer");
-			mTimer.setBase(SystemClock.elapsedRealtime());
-			mTimer.start();
-		}
-		else {
-			Log.w("Workout","persisting the timer");
-			//persisting the timer
-			mTimer.setText(mTimerText);
+		mTimer.setCorrectBaseAndStart(mInitialCreate, mPause, mTimeWhenStopped, mTimerText);
+		if (!mInitialCreate) {
 			setDisplayClock(HYBRID, mTimerText);
-			
 			if (!mPause) {
-				mCommandText.setText("");	
-				resumeTimer();
-				mTimer.start();
+				mCommandText.setText("");
 			}
-			else { //in pause state
-				mTimer.setBase(SystemClock.elapsedRealtime() + mTimeWhenStopped);
-				mPauseButton.setEnabled(false);
+			else {
+				mPauseButton.turnOff();
 			}
 		}
 	}
@@ -651,21 +620,17 @@ public class Workout extends Activity implements OnClickListener{
 		//save the time when the timer was stopped
 		mTimeWhenStopped = mTimer.getBase() - SystemClock.elapsedRealtime();
 		mTimer.stop();
-		mPauseButton.setEnabled(false);
-		if(!mStartButton.isEnabled()) {
-			mStartButton.setEnabled(true);
-		}
+		//turn off pause button and turn on start button
+		mPauseButton.turnOff();
+		mStartButton.turnOn();
 	}
 	
 	/*Resumes the timer */
 	public void resumeTimer() {
 		//adjust the timer to the correct time
-		mTimer.setBase(SystemClock.elapsedRealtime() + mTimeWhenStopped);
-		mTimer.start();
-		if(!mPauseButton.isEnabled()) {
-			mPauseButton.setEnabled(true);
-			mPause = false;
-		}
+		mTimer.setCorrectBaseAndStart(mInitialCreate, mPause, mTimeWhenStopped, mTimerText);
+		mPause = false;
+		mPauseButton.turnOn();
 	}
 	/** Called when activity is interrupted, like orientation change */
 	@Override
@@ -725,13 +690,9 @@ public class Workout extends Activity implements OnClickListener{
 				if (mStoppedTimerText != null) {
 					mDisplayClock.setText(Utils.getPrettyHybridTime(mStoppedTimerText));
 				}
-				//prevent accidental clicks
-				if(mPauseButton.isEnabled()) {
-					mPauseButton.setEnabled(false);
-				}
-				if (mStopButton.isEnabled()) {
-					mStopButton.setEnabled(false);
-				}
+				//turn of pause button and stop button to prevent accidental clicks
+				mPauseButton.turnOff();
+				mStopButton.turnOff();
 			}
 		}
 		else {
@@ -816,7 +777,6 @@ public class Workout extends Activity implements OnClickListener{
 		Log.w("Workout", "(restore) pause:  " + mPause);
 	}
 
-	
 	/**Creates an intent with the specified extra and starts the feedback service */
 	public void startResponseService(int response) {
 		Log.w("Workout", "starting service");
@@ -832,10 +792,10 @@ public class Workout extends Activity implements OnClickListener{
 			}
 			intent.putExtra(UPDATE_TIME_STRING, timerTime);
 		}
-		//prevent interruptions for feedback
-		mStartButton.setEnabled(false);
-		mStopButton.setEnabled(false);
-		mPauseButton.setEnabled(false);
+		//turn off buttons prevent interruptions for feedback
+		mStartButton.turnOff();
+		mPauseButton.turnOff();
+		mStopButton.turnOff();
 		
 		//reset speechRec counter
 		mCounter = 0;
@@ -854,35 +814,29 @@ public class Workout extends Activity implements OnClickListener{
 				if (action.equals(FeedbackService.START)) {
 					//for a flash effect, but for pause want text to remain until start again
 					if(!mPause) { //still doing the workout
-						mCommandText.setText("");	
-						if (!mPauseButton.isEnabled()) {
-							mPauseButton.setEnabled(true);
-						}
+						mCommandText.setText("");
+						//turn on pause button
+						mPauseButton.turnOn();
 					}
 					if (mPause) {
-						mStartButton.setEnabled(true);
-						mPauseButton.setEnabled(false);
+						//disable pause button and turn on start button
+						mStartButton.turnOn();
+						mPauseButton.turnOff();
 					}
-
 					//stop will always be enabled
-					mStopButton.setEnabled(true);
+					mStopButton.turnOn();
 					startListening();
 				}
 				if(action.equals(FeedbackService.STOP)) {
 					//maybe use this to prompt the user to save the workout
-					//enable the start button
-					if (!mStartButton.isEnabled()) {
-						mStartButton.setEnabled(true);
-					}
-					if (mPauseButton.isEnabled()) {
-						mPauseButton.setEnabled(false);
-					}
+					//enable the start button and disable the pause button
+					mStartButton.turnOn();
+					mPauseButton.turnOff();
 				}
 			}
 			else {
 				Log.w("Workout", "intent action:  " + intent.getAction());
 			}
-		
 		}
 	}
 	/**Set the layout font */
@@ -895,13 +849,9 @@ public class Workout extends Activity implements OnClickListener{
 			if (view instanceof TextView) {
 				((TextView) view).setTypeface(font);
 			}
-			if (view instanceof Chronometer) {
-				((Chronometer) view).setTypeface(font);
-			}
-			if (view instanceof Button) {
+			if (view instanceof CustomButton) {
 				((Button) view).setTypeface(font);
 			}
 		}
-		
 	}
 }

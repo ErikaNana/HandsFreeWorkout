@@ -111,6 +111,11 @@ public class Utils {
 		
 		//case for initial startup
 		if (time == null) {
+			Log.w("pretty hybrid time", "time is null");
+			return "0 seconds";
+		}
+		Log.w("pretty hybrid time", "(pht) time is:  " + time);
+		if (time == "0 seconds") {
 			return "0 seconds";
 		}
 		String correctSeconds = " seconds";
