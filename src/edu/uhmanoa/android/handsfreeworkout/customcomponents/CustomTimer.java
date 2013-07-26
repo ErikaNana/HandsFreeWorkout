@@ -17,28 +17,32 @@ public class CustomTimer extends Chronometer{
 	}
 	
 	/** Sets the correct base for the timer and runs it */
-	public void setCorrectBaseAndStart(boolean initialCreate, boolean pause, long timeWhenStopped, String timerText) {
-/*		Log.w("CustomTimer", "initialCreate:  " + initialCreate);
+	public void setCorrectBaseAndStart(boolean workoutStopped, boolean workoutRunning, boolean initialCreate, boolean pause, long timeWhenStopped, String timerText) {
+		Log.w("CustomTimer", "initialCreate:  " + initialCreate);
 		Log.w("CustomTimer", "pause:  " + pause);
 		Log.w("CustomTimer", "timeWhenStopped:  " + timeWhenStopped);
-		Log.w("CustomTimer", "timerText:  " + timerText);*/
+		Log.w("CustomTimer", "timerText:  " + timerText);
+		Log.w("CustomTimer", "workout stopped:  " + workoutStopped);
+		Log.w("CustomTimer", "workout running:  " + workoutRunning);
 		//if initial start up
+		this.setText(timerText);
 		if (initialCreate) {
 			//use "this" keyword because modifying the current object
 			this.setBase(SystemClock.elapsedRealtime());
 			this.start();
 		}
 		else {
-			this.setText(timerText);
-			if (!pause) {
-				/* elapsedRealtime() = returns ms since boot
-				 * best method to use to get current time */
+			if (workoutStopped) {
+				this.setBase(SystemClock.elapsedRealtime() + timeWhenStopped);			
+			}
+			if (pause) {
+				this.setBase(SystemClock.elapsedRealtime() + timeWhenStopped);
+			}
+			if (workoutRunning) {
 				this.setBase(SystemClock.elapsedRealtime() + timeWhenStopped);
 				this.start();
 			}
-			else {
-				this.setBase(SystemClock.elapsedRealtime() + timeWhenStopped);
-			}
+
 		}
 	}
 }
