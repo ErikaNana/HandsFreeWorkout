@@ -146,7 +146,7 @@ public class FeedbackService extends IntentService implements TextToSpeech.OnIni
 	 * the workout based on what has been said in the intent */
 	protected void announceFinished(String action) {
 		Log.w("FBS", "announcing:  " + action);
-		Intent announce = new Intent(Workout.FinishedSpeakingReceiver.FINISHED_SPEAKING);
+		Intent announce = new Intent(Workout.ServiceReceiver.FINISHED_SPEAKING);
 		announce.putExtra(START_STOP, action);
 		//broadcast with default category
 		announce.addCategory(Intent.CATEGORY_DEFAULT);

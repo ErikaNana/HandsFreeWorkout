@@ -1,14 +1,7 @@
 package edu.uhmanoa.android.handsfreeworkout.ui;
 
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
-
-import edu.uhmanoa.android.handsfreeworkout.R;
-import edu.uhmanoa.android.handsfreeworkout.customcomponents.CustomButton;
-import edu.uhmanoa.android.handsfreeworkout.customcomponents.CustomTimer;
-import edu.uhmanoa.android.handsfreeworkout.services.FeedbackService;
-import edu.uhmanoa.android.handsfreeworkout.utils.Utils;
 
 import android.app.Activity;
 import android.content.BroadcastReceiver;
@@ -18,13 +11,9 @@ import android.content.IntentFilter;
 import android.content.pm.PackageManager;
 import android.content.pm.ResolveInfo;
 import android.graphics.Typeface;
-import android.media.MediaRecorder;
 import android.os.Bundle;
-import android.os.Handler;
 import android.os.SystemClock;
-import android.speech.RecognitionListener;
 import android.speech.RecognizerIntent;
-import android.speech.SpeechRecognizer;
 import android.util.Log;
 import android.view.View;
 import android.view.View.OnClickListener;
@@ -34,15 +23,15 @@ import android.widget.Chronometer;
 import android.widget.Chronometer.OnChronometerTickListener;
 import android.widget.LinearLayout;
 import android.widget.TextView;
+import edu.uhmanoa.android.handsfreeworkout.R;
+import edu.uhmanoa.android.handsfreeworkout.customcomponents.CustomButton;
+import edu.uhmanoa.android.handsfreeworkout.customcomponents.CustomTimer;
+import edu.uhmanoa.android.handsfreeworkout.services.CommandListeningService;
+import edu.uhmanoa.android.handsfreeworkout.services.FeedbackService;
+import edu.uhmanoa.android.handsfreeworkout.utils.Utils;
 
 public class Workout extends Activity implements OnClickListener{
 	
-	protected Intent mIntent; //intent to start voice rec activity
-	protected SpeechRecognizer mSpeechRec; 
-	protected RecognitionListener mSpeechRecListen; 
-	protected Handler mHandler; //handler that handles the voice rec and speech rec checks
-	protected MediaRecorder mRecorder; //recorder that listens for a command
-	protected ArrayList<Integer> mAverage; 
 	protected CustomButton mStartButton; 
 	protected CustomButton mStopButton;
 	protected CustomButton mPauseButton;
@@ -50,15 +39,9 @@ public class Workout extends Activity implements OnClickListener{
 	protected TextView mCommandText;
 	protected CustomTimer mTimer; 
 	protected TextView mDisplayClock;
-	protected FinishedSpeakingReceiver mReceiver;
+	protected ServiceReceiver mReceiver;
+	protected Intent mListeningServiceIntent;
 	
-	protected boolean mSpeechRecAlive;
-	protected boolean mFinished; //if speech recognition heard something
-	protected boolean mDoingVoiceRec;
-	protected boolean mCheckBaseline;
-	protected boolean mListeningForCommands;
-	protected int mBaselineAmp;
-	protected int mCounter;
 	protected boolean mPause;
 	protected long mTimeWhenStopped;
 	protected String mTimerText;
@@ -145,9 +128,6 @@ public class Workout extends Activity implements OnClickListener{
 		mPauseButton = (CustomButton) findViewById(R.id.pauseButton);
 		mPauseButton.setOnClickListener(this);
 		
-		mHandler = new Handler();
-		mSpeechRecAlive = false;
-		mAverage = new ArrayList<Integer>();
 		mInitialCreate = true;
 		
 		//disable button if no recognition service is present
@@ -165,215 +145,10 @@ public class Workout extends Activity implements OnClickListener{
 			mStartButton.setText("Recognizer not present");
 		}
 	}
-	
-	/* Start voice recognition */
-	public void startVoiceRec() {
-		//starting new stage
-		stopListening();
-		//for persistence
-		Log.w("Workout","Starting voice rec");
 
-		if (mTimer == null) {
-			Log.w("Workout","mTimer is null");
-			createTimer();
-		}
-		mDoingVoiceRec = true;
-		mStartButton.turnOff();
-		mSpeechRec = SpeechRecognizer.createSpeechRecognizer(this);
-		mSpeechRecListen = new RecognitionListener() {
-			
-			
-			/** Methods to override android.speech */
-			@Override
-			public void onBeginningOfSpeech() {
-				mSpeechRecAlive = true;
-			}
-
-			@Override
-			public void onBufferReceived(byte[] arg0) {
-			}
-
-			@Override
-			public void onEndOfSpeech() {
-			}
-
-			@Override
-			public void onError(int error) {
-				mSpeechRecAlive = false;	
-			}
-			@Override
-			public void onEvent(int arg0, Bundle arg1) {
-				//don't need
-			}
-
-			@Override
-			public void onPartialResults(Bundle arg0) {
-				//don't need
-			}
-
-			@Override
-			public void onReadyForSpeech(Bundle arg0) {
-			}
-			
-			@Override
-			public void onResults(Bundle bundle) {
-				mSpeechRecAlive = true;	
-				mFinished = true;
-				//heard result so stop listening for words
-				stopVoiceRec();
-				//handle the output
-				ArrayList<String> results = bundle.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION);
-				handleInput(results);
-			}
-
-			@Override
-			public void onRmsChanged(float arg0) {
-			}
-		};
-		mSpeechRec.setRecognitionListener(mSpeechRecListen);
-		mIntent = new Intent (RecognizerIntent.ACTION_RECOGNIZE_SPEECH);
-		//this extra is required
-		mIntent.putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM);
-		// text prompt to show to the user when asking them to speak. 
-		mIntent.putExtra(RecognizerIntent.EXTRA_PROMPT, "Voice Recognition");
-		mSpeechRec.startListening(mIntent);
-	}
-	
-	/* Stop speech recognition */
-	public void stopVoiceRec() {
-		mDoingVoiceRec = false;
-		mHandler.removeCallbacks(checkSpeechRec);
-		destroySpeechRecognizer();
-	}
-	/** A Handler takes in a Runnable object and schedules its execution; it places the
-	 * runnable process as a job in an execution queue to be run after a specified amount
-	 * of time
-	 * The runnable will be run on the thread to which the handler is attached*/
-	
-	/** This periodically checks to see if there was input into speechRecognizer */
-	Runnable checkSpeechRec = new Runnable() {
-		
-		@Override
-		public void run() {
-			mCounter +=1;
-			Log.w("Workout", "checking if alive");
-			if (mSpeechRecAlive) {
-				if (mFinished) {
-					Log.w("Workout", "confirmed result");
-					mSpeechRecAlive = false;
-					//reset mFinished
-					mFinished = false;
-				}
-			}
-			
-			else{				
-				destroySpeechRecognizer();
-				startVoiceRec();
-			}
-			if (mCounter < 4) {
-				mHandler.postDelayed(checkSpeechRec, UPDATE_FREQUENCY);			
-			}
-			if (mCounter >= 4) {
-				stopVoiceRec();
-				Log.w("WORKOUT", "SILENCE");
-				//reset mCounter
-				startResponseService(SILENCE);
-			}
-		}
-	};
-	
-	Runnable checkMaxAmp = new Runnable() {
-		/**Sets the baseline max amplitude for the first 10 seconds, and for every 1/3 second
-		 * after that, checks the max amplitude.  If it hears a sound that has a higher 
-		 * amplitude than the one found in the baseline, launches the voice recognizer
-		 * activity 
-		 * Cases to consider:  panting (like when you're tired)
-		 * 					   unnecessary talking*/
-		@Override
-		public void run() {
-			mInitialCreate = false;
-			//if there is no recorder (like when launch speech recognizer) don't do anything
-			if (mRecorder == null) {
-				return;
-			}
-			else {
-				Long frequency;
-				//for first ten seconds do an average
-				int maxAmp = mRecorder.getMaxAmplitude();
-				mBaselineAmp = 8000;
-				//get number of digits
-				int digitsCurrent = Utils.getDigits(maxAmp);
-				int digitsBaseline = Utils.getDigits(mBaselineAmp);
-					
-				//if the difference is one or greater, then it is a command
-				int difference = digitsCurrent - digitsBaseline;
-				if (difference > 0) {
-					Log.e("Workout", "spoke at volume:  " + maxAmp);
-					//launch the speech recognizer and stop listening
-					startVoiceRec();
-					checkSpeechRec.run();
-				}
-				frequency = Workout.CHECK_FREQUENCY;
-				mHandler.postDelayed(checkMaxAmp, frequency);
-			}
-		}
-	};
-	/* Start listening for commands */
-	public void startListening() {
-		Log.w("Workout", "mRecorder:  " + mRecorder);
-		Log.w("Workout", "mSpeechRec:  " + mSpeechRec);
-		mListeningForCommands = true;
-		Log.w("Workout", "start listening");
-
-		//reset the stopped time text
-		if (mStoppedTimerText != null) {
-			mStoppedTimerText = null;
-		}
-		//for persistence
-		if (!mPause) {
-			mStartButton.turnOff();
-		}
-		if (mTimer == null) {
-			Log.w("Workout","mTimer is null");
-			createTimer();
-		}
-
-		mRecorder = new MediaRecorder();
-		mRecorder.setAudioSource(MediaRecorder.AudioSource.MIC);
-		mRecorder.setOutputFormat(MediaRecorder.OutputFormat.THREE_GPP);
-		String name = Utils.getOutputMediaFilePath();
-		mRecorder.setOutputFile(name);
-		mRecorder.setAudioEncoder(MediaRecorder.AudioEncoder.AMR_NB);
-
-		try {
-			mRecorder.prepare();
-			mRecorder.start();
-			checkMaxAmp.run();
-
-		} catch (Error e) {
-			Log.w("WorkOut", e.getMessage());
-			e.printStackTrace();
-		} catch (IOException e) {
-			Log.w("Workout", e.getMessage());
-			e.printStackTrace();
-		}
-	}
-	/* Stop listening for commands */
-	public void stopListening() {
-		Log.w("Workout", "Stop listening");
-		mListeningForCommands = false;
-		mHandler.removeCallbacks(checkMaxAmp);
-		//just to be safe
-		stopAndDestroyRecorder();
-		//if doing voice rec, destroy it
-		if (mSpeechRec != null) {
-			stopVoiceRec();
-		}
-	}
 
 	public void handleInput(ArrayList<String> results) {
 		//use a default layout to display the words
-		mDoingVoiceRec = false;
 		String command = "command not recognized";
 		
 		int word = 0;
@@ -400,11 +175,7 @@ public class Workout extends Activity implements OnClickListener{
 	/** Replies to commands */
 	public void replyToCommands(int word) {
 		Log.w("Workout", "replying");
-		Log.w("Workout", "voice recording:  " + mDoingVoiceRec);
 		/*Log.w("Workout", "listening:  " + mListeningForCommands);*/
-		Log.w("Workout", "mRecorder = " + mRecorder);
-		Log.w("Workout", "mSpeechRec = " + mSpeechRec);
-
 		switch(word) {
 			//start
 			case (1):{
@@ -462,7 +233,6 @@ public class Workout extends Activity implements OnClickListener{
 	@Override
 	public void onClick(View view) {
 		//starting new stage
-		stopListening();
 		mCommandText.setText("");
 		switch (view.getId()){
 			case(R.id.speakButton):{
@@ -494,17 +264,10 @@ public class Workout extends Activity implements OnClickListener{
 		if (!mStartButton.isEnabled()) {
 			Log.w("Workout", "stop listening to commands");
 			//only do these if they are not null
-			if (mRecorder != null) {
-				stopListening();
-				if (mDoingVoiceRec) {
-					stopVoiceRec();
-				}
-			}
 			//turn on start button
 			mStartButton.turnOn();
 		}
 		//reset everything
-		mAverage.clear();
 		mPauseButton.turnOn();
 		mPause = false;
 		mStoppedTimerText = (String) mTimer.getText();
@@ -600,9 +363,6 @@ public class Workout extends Activity implements OnClickListener{
 	@Override
 	protected void onPause() {
 		Log.w("Workout", "activity interrupted");
-		Log.w("Workout", "(on pause) listening for commands:  " + mListeningForCommands);
-		Log.w("Workout", "(on pause) speech rec:  " + mDoingVoiceRec);
-		Log.w("Workout", "(on pause) speech rec alive:  " + mSpeechRecAlive);
 		if (mTimer != null) {
 			mTimerText = (String) mTimer.getText();
 			Log.w("Workout", "timer Text:  " + mTimerText);
@@ -610,15 +370,6 @@ public class Workout extends Activity implements OnClickListener{
 			if (!mPause) {
 				mTimeWhenStopped = mTimer.getBase() - SystemClock.elapsedRealtime();
 			}
-		}
-		//can't use the stop* methods because of the boolean flags
-		if (mRecorder != null) {
-			mHandler.removeCallbacks(checkMaxAmp);
-			stopAndDestroyRecorder();
-		}
-		if (mSpeechRec != null) {
-			mHandler.removeCallbacks(checkSpeechRec);
-			destroySpeechRecognizer();
 		}
 		//unregister the receiver
 		this.unregisterReceiver(mReceiver);
@@ -631,20 +382,9 @@ public class Workout extends Activity implements OnClickListener{
 		Log.w("Workout", "on resume");
 		//so that can resume, but also considering first run of app
 		//set the text of the display clock
+		createTimer();
 		Log.w("Workout","initial create:  "+ mInitialCreate);
 		if (!mInitialCreate) {
-			if (mDoingVoiceRec) {
-				Log.w("Workout", "!mInitialCreate doing voice rec");
-				Log.w("Workout", "resuming speech recognition");
-				Log.w("Workout", "speech rec alive:  " + mSpeechRecAlive);
-				startVoiceRec();
-				checkSpeechRec.run();
-			}
-			if (mListeningForCommands) {
-				Log.w("Workout", "listening for commands");
-				startListening();
-			}
-			else {
 				//persist the time 
 				mDisplayClock.setText(Utils.getPrettyHybridTime(mTimerText));
 				if (mStoppedTimerText != null) {
@@ -653,7 +393,6 @@ public class Workout extends Activity implements OnClickListener{
 				//turn of pause button and stop button to prevent accidental clicks
 				mPauseButton.turnOff();
 				mStopButton.turnOff();
-			}
 		}
 		else {
 			//initial create
@@ -662,15 +401,18 @@ public class Workout extends Activity implements OnClickListener{
 		}
 		
 		//create IntentFilter to match with FINISHED_SPEAKING action
-		IntentFilter intentFilter = new IntentFilter(FinishedSpeakingReceiver.FINISHED_SPEAKING);
+		IntentFilter intentFilter = new IntentFilter(ServiceReceiver.FINISHED_SPEAKING);
 		//broadcasting an Intent with CATEGORY_DEFAULT, so add this category
 		intentFilter.addCategory(Intent.CATEGORY_DEFAULT);
+		IntentFilter commandIF = new IntentFilter(ServiceReceiver.FINISHED_LISTENING);
+		commandIF.addCategory(Intent.CATEGORY_DEFAULT);
 		//initialize the receiver
-		mReceiver = new FinishedSpeakingReceiver();
+		mReceiver = new ServiceReceiver();
 		/* Register a Broadcast Receiver to be run in the main activity thread
 		 * The receiver will be called with any broadcast Intent that matches filter
 		 * in the main application thread*/
 		this.registerReceiver(mReceiver, intentFilter);
+		this.registerReceiver(mReceiver, commandIF);
 		super.onResume();
 	}
 	
@@ -680,27 +422,16 @@ public class Workout extends Activity implements OnClickListener{
 		//store the current values in outState
 		Log.w("Workout", "saving instance state");
 
-		outState.putBoolean(SAVED_SPEECH_REC_ALIVE_VALUE, mSpeechRecAlive);
-		outState.putBoolean(SAVED_FINISHED_SPEECH_REC_VALUE, mFinished);
-		outState.putBoolean(SAVED_DOING_SPEECH_REC_VALUE, mDoingVoiceRec);
-/*		outState.putBoolean(SAVED_CHECK_BASELINE_VALUE, mCheckBaseline);*/
-		outState.putBoolean(SAVED_LISTENING_FOR_COMMANDS_VALUE, mListeningForCommands);
-		outState.putInt(SAVED_BASELINE_AMP_VALUE, mBaselineAmp);
-		outState.putIntegerArrayList(SAVED_AVERAGE_ARRAYLIST_VALUE, mAverage);
 		outState.putString(SAVED_TIMER_TEXT_VALUE, mTimerText);
 		outState.putLong(SAVED_TIME_WHEN_STOPPED_VALUE, mTimeWhenStopped);
 		outState.putBoolean(SAVED_INITIAL_CREATE, mInitialCreate);
-		outState.putInt(SAVED_COUNTER, mCounter);
 		outState.putBoolean(SAVED_PAUSE, mPause);
 		outState.putString(SAVED_PAUSE_COMMAND_TEXT, (String) mCommandText.getText());
 		outState.putString(SAVED_STOP_TIMER_TEXT, mStoppedTimerText);
 		
-		Log.w("Workout", "(save) doing speechRec:  " + mDoingVoiceRec);
-		Log.w("Workout", "(save) listening for commands:  " + mListeningForCommands);
 		Log.w("Workout", "(save) timer text:  " + mTimerText);
 		Log.w("Workout", "(save) time when stopped text:  " + mTimeWhenStopped);
 		Log.w("Workout", "(save) initial create:  " + mInitialCreate);
-		Log.w("Workout", "(save) counter:  " + mCounter);
 		Log.w("Workout", "(save) pause:  " + mPause);
 		super.onSaveInstanceState(outState);
 	}
@@ -713,27 +444,16 @@ public class Workout extends Activity implements OnClickListener{
 		//retrieve the values and set them
 		//maybe test for null and use Bundle.containsKey() method later
 
-		mSpeechRecAlive = savedInstanceState.getBoolean(SAVED_SPEECH_REC_ALIVE_VALUE);
-		mFinished= savedInstanceState.getBoolean(SAVED_FINISHED_SPEECH_REC_VALUE);
-		mDoingVoiceRec = savedInstanceState.getBoolean(SAVED_DOING_SPEECH_REC_VALUE);
-/*		mCheckBaseline = savedInstanceState.getBoolean(SAVED_CHECK_BASELINE_VALUE);*/
-		mListeningForCommands = savedInstanceState.getBoolean(SAVED_LISTENING_FOR_COMMANDS_VALUE);
-		mBaselineAmp = savedInstanceState.getInt(SAVED_BASELINE_AMP_VALUE);
-		mAverage = savedInstanceState.getIntegerArrayList(SAVED_AVERAGE_ARRAYLIST_VALUE);
 		mTimerText = savedInstanceState.getString(SAVED_TIMER_TEXT_VALUE);
 		mTimeWhenStopped = savedInstanceState.getLong(SAVED_TIME_WHEN_STOPPED_VALUE);
 		mInitialCreate = savedInstanceState.getBoolean(SAVED_INITIAL_CREATE);
-		mCounter = savedInstanceState.getInt(SAVED_COUNTER);
 		mPause = savedInstanceState.getBoolean(SAVED_PAUSE);
 		mCommandText.setText(savedInstanceState.getString(SAVED_PAUSE_COMMAND_TEXT));
 		mStoppedTimerText = savedInstanceState.getString(SAVED_STOP_TIMER_TEXT);
 
-		Log.w("Workout", "(restore) doing speechRec:  " + mDoingVoiceRec);
-		Log.w("Workout", "(restore) listening for commands:  " + mListeningForCommands);
 		Log.w("Workout", "(restore) timer text:  " + mTimerText);
 		Log.w("Workout", "(restore) time when stopped text:  " + mTimeWhenStopped);
 		Log.w("Workout", "(restore) initial create:  " + mInitialCreate);
-		Log.w("Workout", "(restore) counter:  " + mCounter);
 		Log.w("Workout", "(restore) pause:  " + mPause);
 	}
 
@@ -756,35 +476,44 @@ public class Workout extends Activity implements OnClickListener{
 		mStartButton.turnOff();
 		mPauseButton.turnOff();
 		mStopButton.turnOff();
-		
-		//reset speechRec counter
-		mCounter = 0;
+
 		this.startService(intent); 
 	}
-	
+	public void startListeningService() {
+		Log.w("Workout", "starting listening service");
+		mListeningServiceIntent = new Intent(this, CommandListeningService.class);
+		this.startService(mListeningServiceIntent);
+	}
 	/** Broadcast Receiver for FeedbackService */
-	public class FinishedSpeakingReceiver extends BroadcastReceiver {
-		public static final String FINISHED_SPEAKING = "FINISHED_SPEAKING";
+	public class ServiceReceiver extends BroadcastReceiver {
+		
+		public static final String FINISHED_SPEAKING = "finished speaking";
+		public static final String FINISHED_LISTENING = "finished listening";
+		
 		@Override
 		public void onReceive(Context context, Intent intent) {
 			Log.w("Workout", "broadcast received");
+			Log.w("Workout", "intent action:  " + intent.getAction());
 			if (intent.getAction().equals(FINISHED_SPEAKING)) {
 				String action = intent.getStringExtra(FeedbackService.START_STOP);
 				Log.w("Workout", "action:  " + action);
 				if (action.equals(FeedbackService.START)) {
+					Log.w("Workout", "On receive intial create:  " + mInitialCreate);
 					//for a flash effect, but for pause want text to remain until start again
 					if(!mPause) { //still doing the workout
 						mCommandText.setText("");
 						mPauseButton.turnOn();
+						if (mInitialCreate) {
+							startListeningService();
+							mInitialCreate = false;
+							mStartButton.turnOff();
+						}
 					}
 					if (mPause) {
 						//disable pause button and turn on start button
 						mStartButton.turnOn();
 						mPauseButton.turnOff();
 					}
-					//stop will always be enabled
-					mStopButton.turnOn();
-					startListening();
 				}
 				if(action.equals(FeedbackService.STOP)) {
 					//maybe use this to prompt the user to save the workout
@@ -792,31 +521,27 @@ public class Workout extends Activity implements OnClickListener{
 					mStartButton.turnOn();
 					mPauseButton.turnOff();
 				}
+				
+				//stop will always be enabled
+				mStopButton.turnOn();
 			}
-			else {
-				Log.w("Workout", "intent action:  " + intent.getAction());
+			if (intent.getAction().equals(FINISHED_LISTENING)) {
+				Log.w("Workout", "success");
+				
 			}
 		}
 	}
-	/**Stops and destroys the recorder */
-	public void stopAndDestroyRecorder() {
-		if (mRecorder != null) {
-			mRecorder.stop();
-			mRecorder.reset();
-			mRecorder.release();
-			mRecorder = null;
-		}
-	}
-	public void destroySpeechRecognizer() {
-		mSpeechRec.destroy();
-		mSpeechRec = null;
-	}
+
 	public void onStop() {
 		super.onStop();
 		Log.e("Workout","in on Stop");
 	}
 	public void onRestart() {
 		Log.e("Workout", "in on Restart");
+	}
+	public void onDestroy() {
+		super.onDestroy();
+		Log.e("Workout", "Workout onDestroy");
 	}
 	/**Set the layout font */
 	public void setLayoutFont() {
