@@ -122,7 +122,7 @@ public class Workout extends Activity implements OnClickListener{
 	
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
-		Log.w("Workout", "on Create");
+		Log.e("Workout", " in on Create");
 		super.onCreate(savedInstanceState);
 		//Remove title bar
 		this.requestWindowFeature(Window.FEATURE_NO_TITLE);
@@ -186,53 +186,20 @@ public class Workout extends Activity implements OnClickListener{
 			/** Methods to override android.speech */
 			@Override
 			public void onBeginningOfSpeech() {
-				Log.w("Workout", "on beginning of speech");
 				mSpeechRecAlive = true;
 			}
 
 			@Override
 			public void onBufferReceived(byte[] arg0) {
-				Log.w("Workout", "buffer received");	
 			}
 
 			@Override
 			public void onEndOfSpeech() {
-				Log.w("Workout", "end of speech");
-
 			}
 
 			@Override
 			public void onError(int error) {
 				mSpeechRecAlive = false;	
-				switch (error) {
-					case (SpeechRecognizer.ERROR_AUDIO):{
-						Log.w("Workout", "audio");
-					}
-					case (SpeechRecognizer.ERROR_CLIENT):{
-						Log.w("Workout", "client");
-					}
-					case (SpeechRecognizer.ERROR_INSUFFICIENT_PERMISSIONS):{
-						Log.w("Workout", "insufficient permissions");
-					}
-					case (SpeechRecognizer.ERROR_NETWORK):{
-						Log.w("Workout", "network");
-					}
-					case (SpeechRecognizer.ERROR_NETWORK_TIMEOUT):{
-						Log.w("Workout", "network timeout");
-					}
-					case (SpeechRecognizer.ERROR_NO_MATCH):{
-						Log.w("Workout", "no_match");
-					}
-					case (SpeechRecognizer.ERROR_RECOGNIZER_BUSY):{
-						Log.w("Workout", "recognizer busy");
-					}
-					case (SpeechRecognizer.ERROR_SERVER):{
-						Log.w("Workout", "server");
-					}
-					case (SpeechRecognizer.ERROR_SPEECH_TIMEOUT):{
-						Log.w("Workout", "speech timeout");
-					}
-				}
 			}
 			@Override
 			public void onEvent(int arg0, Bundle arg1) {
@@ -246,13 +213,10 @@ public class Workout extends Activity implements OnClickListener{
 
 			@Override
 			public void onReadyForSpeech(Bundle arg0) {
-				Log.w("Workout", "ready for speech");
-				Log.w("Workout", "counter:  " + mCounter);
 			}
 			
 			@Override
 			public void onResults(Bundle bundle) {
-				Log.w("Workout", "on Results");
 				mSpeechRecAlive = true;	
 				mFinished = true;
 				//heard result so stop listening for words
@@ -264,7 +228,6 @@ public class Workout extends Activity implements OnClickListener{
 
 			@Override
 			public void onRmsChanged(float arg0) {
-				//don't need		
 			}
 		};
 		mSpeechRec.setRecognitionListener(mSpeechRecListen);
@@ -280,8 +243,7 @@ public class Workout extends Activity implements OnClickListener{
 	public void stopVoiceRec() {
 		mDoingVoiceRec = false;
 		mHandler.removeCallbacks(checkSpeechRec);
-		mSpeechRec.destroy();
-		mSpeechRec = null;
+		destroySpeechRecognizer();
 	}
 	/** A Handler takes in a Runnable object and schedules its execution; it places the
 	 * runnable process as a job in an execution queue to be run after a specified amount
@@ -305,7 +267,7 @@ public class Workout extends Activity implements OnClickListener{
 			}
 			
 			else{				
-				mSpeechRec.destroy();
+				destroySpeechRecognizer();
 				startVoiceRec();
 			}
 			if (mCounter < 4) {
@@ -402,12 +364,7 @@ public class Workout extends Activity implements OnClickListener{
 		mListeningForCommands = false;
 		mHandler.removeCallbacks(checkMaxAmp);
 		//just to be safe
-		if (mRecorder != null) {
-			mRecorder.stop();
-			mRecorder.reset();
-			mRecorder.release();
-			mRecorder = null;
-		}
+		stopAndDestroyRecorder();
 		//if doing voice rec, destroy it
 		if (mSpeechRec != null) {
 			stopVoiceRec();
@@ -506,13 +463,13 @@ public class Workout extends Activity implements OnClickListener{
 	public void onClick(View view) {
 		//starting new stage
 		stopListening();
+		mCommandText.setText("");
 		switch (view.getId()){
 			case(R.id.speakButton):{
 				Log.w("Workout", "start button is pressed");
 				if (mPause) {
 					resumeTimer();
 				}
-				Log.w("WORKOUT", "RESUME WORKOUT");
 				startResponseService(RESUME_WORKOUT);
 				break;
 			}
@@ -525,7 +482,6 @@ public class Workout extends Activity implements OnClickListener{
 				Log.w("Workout", "pause button is pressed");
 				if (!mPause) {
 					pauseTimer();
-					Log.w("WORKOUT", "PAUSE WORKOUT");
 					startResponseService(PAUSE_WORKOUT);
 				}
 				break;
@@ -658,15 +614,11 @@ public class Workout extends Activity implements OnClickListener{
 		//can't use the stop* methods because of the boolean flags
 		if (mRecorder != null) {
 			mHandler.removeCallbacks(checkMaxAmp);
-			mRecorder.stop();
-			mRecorder.reset();
-			mRecorder.release();
-			mRecorder = null;
+			stopAndDestroyRecorder();
 		}
 		if (mSpeechRec != null) {
 			mHandler.removeCallbacks(checkSpeechRec);
-			mSpeechRec.destroy();
-			mSpeechRec = null;
+			destroySpeechRecognizer();
 		}
 		//unregister the receiver
 		this.unregisterReceiver(mReceiver);
@@ -845,6 +797,26 @@ public class Workout extends Activity implements OnClickListener{
 				Log.w("Workout", "intent action:  " + intent.getAction());
 			}
 		}
+	}
+	/**Stops and destroys the recorder */
+	public void stopAndDestroyRecorder() {
+		if (mRecorder != null) {
+			mRecorder.stop();
+			mRecorder.reset();
+			mRecorder.release();
+			mRecorder = null;
+		}
+	}
+	public void destroySpeechRecognizer() {
+		mSpeechRec.destroy();
+		mSpeechRec = null;
+	}
+	public void onStop() {
+		super.onStop();
+		Log.e("Workout","in on Stop");
+	}
+	public void onRestart() {
+		Log.e("Workout", "in on Restart");
 	}
 	/**Set the layout font */
 	public void setLayoutFont() {
