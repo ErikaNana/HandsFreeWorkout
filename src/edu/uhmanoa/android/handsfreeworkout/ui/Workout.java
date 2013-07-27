@@ -87,8 +87,6 @@ public class Workout extends Activity implements OnClickListener{
 	 * ISSUES TO DEAL WITH STILL:
 	 * accidental loud noises
 	 * 
-	 * stop the service when the activity is finishing (after call finish() on it)
-	 * 
 	 * maybe for baseline, require user to say a phrase for x amount of seconds.  
 	 * if amp is within 5% of that, then it is a command
 	 *
@@ -453,6 +451,9 @@ public class Workout extends Activity implements OnClickListener{
 	public void onDestroy() {
 		super.onDestroy();
 		Log.w("Workout", "is finishing?  " + this.isFinishing());
+		if (isFinishing()) {
+			this.stopService(mHandsFreeIntent);
+		}
 		//this.stopService(mHandsFreeIntent);
 		Log.e("Workout", "Workout onDestroy");
 	}
