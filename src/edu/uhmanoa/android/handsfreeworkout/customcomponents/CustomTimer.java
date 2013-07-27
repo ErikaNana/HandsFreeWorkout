@@ -18,12 +18,12 @@ public class CustomTimer extends Chronometer{
 	
 	/** Sets the correct base for the timer and runs it */
 	public void setCorrectBaseAndStart(boolean workoutStopped, boolean workoutRunning, boolean initialCreate, boolean pause, long timeWhenStopped, String timerText) {
-		Log.w("CustomTimer", "initialCreate:  " + initialCreate);
+/*		Log.w("CustomTimer", "initialCreate:  " + initialCreate);
 		Log.w("CustomTimer", "pause:  " + pause);
 		Log.w("CustomTimer", "timeWhenStopped:  " + timeWhenStopped);
 		Log.w("CustomTimer", "timerText:  " + timerText);
 		Log.w("CustomTimer", "workout stopped:  " + workoutStopped);
-		Log.w("CustomTimer", "workout running:  " + workoutRunning);
+		Log.w("CustomTimer", "workout running:  " + workoutRunning);*/
 		//if initial start up
 		this.setText(timerText);
 		if (initialCreate) {
@@ -32,11 +32,11 @@ public class CustomTimer extends Chronometer{
 			this.start();
 		}
 		else {
-			if (workoutStopped) {
-				this.setBase(SystemClock.elapsedRealtime() + timeWhenStopped);			
-			}
 			if (pause) {
 				this.setBase(SystemClock.elapsedRealtime() + timeWhenStopped);
+			}
+			if (workoutStopped) {
+				this.setBase(SystemClock.elapsedRealtime() + timeWhenStopped);			
 			}
 			if (workoutRunning) {
 				this.setBase(SystemClock.elapsedRealtime() + timeWhenStopped);

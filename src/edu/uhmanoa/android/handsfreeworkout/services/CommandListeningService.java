@@ -71,6 +71,7 @@ public class CommandListeningService extends IntentService {
 		mHandler = new Handler();
 		startListening();
 		checkMaxAmp.run();
+		createTTS();
 	}
 	
 	@Override
