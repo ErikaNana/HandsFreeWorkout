@@ -7,7 +7,7 @@ Time the workout.  Provide how much time has passed when update and stop command
 ####Stage 3
 Persist the pause state. <img src="http://www.wiredsystems.com/blog/wp-content/uploads/2012/05/checkmark.jpg" width = "10" height = "10"/>
 ####Stage 4
-Use multiple threads to handle concurrent command listening and UI update of clock. <img src="http://www.clker.com/cliparts/7/d/b/0/11954453151817762013molumen_red_square_error_warning_icon.svg.med.png" width = "10" height = "10"/>
+Use a service to handle concurrent command listening and UI update of clock. <img src="http://www.wiredsystems.com/blog/wp-content/uploads/2012/05/checkmark.jpg" width = "10" height = "10"/>
 ####Stage 5
 Give user option to store the workout and store it. <img src="http://www.clker.com/cliparts/7/d/b/0/11954453151817762013molumen_red_square_error_warning_icon.svg.med.png" width = "10" height = "10"/>
 ####Stage 6
