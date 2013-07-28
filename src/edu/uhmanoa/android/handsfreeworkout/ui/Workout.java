@@ -97,7 +97,7 @@ public class Workout extends Activity implements OnClickListener{
 	 * maybe for baseline, require user to say a phrase for x amount of seconds.  
 	 * if amp is within 5% of that, then it is a command
 	 * 
-	 * phone call interruptions (Telephony manager)
+	 * need to stop listening if there is a phone call interruption
 	 *
 	 */
 
@@ -238,7 +238,7 @@ public class Workout extends Activity implements OnClickListener{
 
 		String time = (String) mTimer.getText();
 		mTimerText = time;
-		//for pause --> stop case
+		//want the most current time possible
 		mUpdateTime = Utils.getUpdate(time);
 		//Log.w("workout", "time in setDisplayClock:  " + time);
 		if (!time.equals("")) {
@@ -336,7 +336,6 @@ public class Workout extends Activity implements OnClickListener{
 	protected void onResume() {
 		Log.w("Workout", "on resume");
 		//so that can resume, but also considering first run of app
-		//set the text of the display clock
 		Log.w("Workout","initial create:  "+ mInitialCreate);
 
 		if (!mInitialCreate) {
