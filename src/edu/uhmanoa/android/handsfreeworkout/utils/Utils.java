@@ -63,44 +63,48 @@ public class Utils {
 		String correctSecond = " seconds ";
 		
 		String timeString = "";
-		
-		//MM:SS or H:MM:SS form
-		String[] time = inputTime.split(":");
-		//there are hours
-		if (time.length > 2) {
-			hours = Integer.valueOf(time[0]);
-			minutes = Integer.valueOf(time[1]);
-			seconds = Integer.valueOf(time[2]);
-			if (hours == 1) {
-				correctHour = " hour, ";
+		//make sure it is a valid time
+		if (inputTime.matches("([0-9][0-9]:[0-9][0-9])|([0-9][0-9]:[0-9][0-9]:[0-9][0-9])")){	
+			//MM:SS or H:MM:SS form
+			String[] time = inputTime.split(":");
+			//there are hours
+			if (time.length > 2) {
+				hours = Integer.valueOf(time[0]);
+				minutes = Integer.valueOf(time[1]);
+				seconds = Integer.valueOf(time[2]);
+				if (hours == 1) {
+					correctHour = " hour, ";
+				}
+			}
+			else {
+				minutes = Integer.valueOf(time[0]);
+				seconds = Integer.valueOf(time[1]);
+			}
+	
+			if (minutes == 1) {
+				correctMinute = " minute and ";
+			}
+			
+			if (seconds == 1) {
+				correctSecond = " second ";
+			}
+			
+			if (minutes == 0) {
+				timeString = seconds + correctSecond;
+				return timeString;
+			}
+			
+			if (time.length > 2) {
+				timeString = hours + correctHour + minutes + correctMinute + seconds
+						+ correctSecond;
+			}
+			else {
+				timeString = minutes + correctMinute + seconds + correctSecond;
 			}
 		}
 		else {
-			minutes = Integer.valueOf(time[0]);
-			seconds = Integer.valueOf(time[1]);
+			timeString = "0 seconds";
 		}
-
-		if (minutes == 1) {
-			correctMinute = " minute and ";
-		}
-		
-		if (seconds == 1) {
-			correctSecond = " second ";
-		}
-		
-		if (minutes == 0) {
-			timeString = seconds + correctSecond;
-			return timeString;
-		}
-		
-		if (time.length > 2) {
-			timeString = hours + correctHour + minutes + correctMinute + seconds
-					+ correctSecond;
-		}
-		else {
-			timeString = minutes + correctMinute + seconds + correctSecond;
-		}
-		
 		return timeString;
 	}
 	
@@ -109,62 +113,57 @@ public class Utils {
 		int hours = 0;
 		int minutes;
 		int seconds;
-		
-		//case for initial startup
-		if (time == null) {
-			return "0 seconds";
-		}
-		if (time.equals("0 seconds")) {
-			return "0 seconds";
-		}
-		if (time.equals("")) {
-			return "0 seconds";
-		}
 		String correctSeconds = " seconds";
 		String timeString = "";
+		//make sure it's a valid time
 		
-		//MM:SS or H:MM:SS form
-		String[] timeArray = time.split(":");
-		//there are hours
-		if (timeArray.length > 2) {
-			hours = Integer.valueOf(timeArray[0]);
-			minutes = Integer.valueOf(timeArray[1]);
-			seconds = Integer.valueOf(timeArray[2]);
-		}
-		else {
-			minutes = Integer.valueOf(timeArray[0]);
-			seconds = Integer.valueOf(timeArray[1]);
-		}
-		
-		String secondFormat = "" + seconds;
-		String minuteFormat = "" + minutes;
-		String hourFormat = "" + hours;
-		
+		if (time.matches("([0-9][0-9]:[0-9][0-9])|([0-9][0-9]:[0-9][0-9]:[0-9][0-9])")){
+			//MM:SS or H:MM:SS form
+			String[] timeArray = time.split(":");
+			//there are hours
+			if (timeArray.length > 2) {
+				hours = Integer.valueOf(timeArray[0]);
+				minutes = Integer.valueOf(timeArray[1]);
+				seconds = Integer.valueOf(timeArray[2]);
+			}
+			else {
+				minutes = Integer.valueOf(timeArray[0]);
+				seconds = Integer.valueOf(timeArray[1]);
+			}
+			
+			String secondFormat = "" + seconds;
+			String minuteFormat = "" + minutes;
+			String hourFormat = "" + hours;
+			
 
-		//set this no mater what
-		if (seconds < 10) {
-			secondFormat = "0" + seconds;
-		}
-		
-		if (hours > 0) {
-			if (minutes < 10) {
-				minuteFormat = "0" + minutes;
-			}	
-			timeString = hourFormat + ":" + minuteFormat + ":" + secondFormat;
-		}
-		//just minutes
-		else {
-			if (minutes > 0) {
-				timeString = minuteFormat + ":" + secondFormat;
+			//set this no mater what
+			if (seconds < 10) {
+				secondFormat = "0" + seconds;
 			}
-			//just seconds
-			else{
-				secondFormat = "" + seconds;
-				if (seconds == 1) {
-					correctSeconds = " second";
+			
+			if (hours > 0) {
+				if (minutes < 10) {
+					minuteFormat = "0" + minutes;
+				}	
+				timeString = hourFormat + ":" + minuteFormat + ":" + secondFormat;
+			}
+			//just minutes
+			else {
+				if (minutes > 0) {
+					timeString = minuteFormat + ":" + secondFormat;
 				}
-				timeString = secondFormat + correctSeconds;
+				//just seconds
+				else{
+					secondFormat = "" + seconds;
+					if (seconds == 1) {
+						correctSeconds = " second";
+					}
+					timeString = secondFormat + correctSeconds;
+				}
 			}
+		}
+		else {
+			timeString = "0 seconds";
 		}
 		return timeString;
 	}
