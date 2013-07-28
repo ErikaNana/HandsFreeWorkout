@@ -1,22 +1,28 @@
 package edu.uhmanoa.android.handsfreeworkout.ui;
-import edu.uhmanoa.android.handsfreeworkout.R;
+import java.util.Locale;
+
 import android.app.Activity;
 import android.content.Intent;
 import android.graphics.Typeface;
 import android.os.Bundle;
+import android.speech.tts.TextToSpeech;
+import android.speech.tts.TextToSpeech.OnInitListener;
 import android.view.View;
 import android.view.Window;
 import android.widget.Button;
 import android.widget.RelativeLayout;
 import android.widget.TextView;
+import edu.uhmanoa.android.handsfreeworkout.R;
 
 
-public class Welcome extends Activity implements View.OnClickListener {
+public class Welcome extends Activity implements View.OnClickListener, OnInitListener {
 
 	protected Button startButton;
+	protected TextToSpeech mTTS;
 	
 	protected void onCreate(Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
+		mTTS = new TextToSpeech(getApplicationContext(),this);
 		//Remove title bar
 		this.requestWindowFeature(Window.FEATURE_NO_TITLE);
 		setContentView(R.layout.welcome);
@@ -47,8 +53,26 @@ public class Welcome extends Activity implements View.OnClickListener {
 	public void onClick(View view) {
 		//go to the main workout activity
 		if (view.getId() == R.id.speakButton) {
+			mTTS.speak("begin workout", TextToSpeech.QUEUE_FLUSH, null);
 			Intent intent = new Intent(this, Workout.class);
 			this.startActivity(intent);
 		}
+	}
+	
+	/** Called to signal completion of TTS initialization.  Handle the check of TTS installation here.*/
+	@Override
+	public void onInit(int status) {
+		if (status == TextToSpeech.SUCCESS) {
+			mTTS.setLanguage(Locale.US);
+		}
+		startButton.setEnabled(true);
+	}
+	
+	@Override
+	public void onDestroy() {
+		super.onDestroy();
+		mTTS.stop();
+		mTTS.shutdown();
+		mTTS = null;
 	}
 }

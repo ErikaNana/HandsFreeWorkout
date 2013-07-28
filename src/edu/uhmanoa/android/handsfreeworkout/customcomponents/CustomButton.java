@@ -1,5 +1,6 @@
 package edu.uhmanoa.android.handsfreeworkout.customcomponents;
 
+import edu.uhmanoa.android.handsfreeworkout.R;
 import android.content.Context;
 import android.graphics.Color;
 import android.util.AttributeSet;
@@ -31,6 +32,18 @@ public class CustomButton extends Button {
 	public void turnOn () {
 		if (!this.isEnabled()) {
 			this.setEnabled(true);
+		}
+	}
+	@Override
+	public void setEnabled(boolean enabled) {
+		super.setEnabled(enabled);
+		int enabledColor = getResources().getColor(R.color.OffBlack);
+		int disabledColor = getResources().getColor(R.color.OffGrey);
+		if (enabled) {
+			this.setTextColor(enabledColor);
+		}
+		if (!enabled) {
+			this.setTextColor(disabledColor);
 		}
 	}
 

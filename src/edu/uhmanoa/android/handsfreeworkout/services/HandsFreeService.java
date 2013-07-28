@@ -38,6 +38,7 @@ public class HandsFreeService extends Service implements TextToSpeech.OnInitList
 	protected boolean mListeningForCommands;
 	protected int mBaselineAmp;
 	protected int mCounter;
+	protected String mUpdateTime;
 	
 	/* So can differentiate between what needs to be said in TTS */
 	protected HashMap <String, String> mReplies = new HashMap<String, String>();
@@ -74,7 +75,14 @@ public class HandsFreeService extends Service implements TextToSpeech.OnInitList
 	protected static final String COMMAND_NOT_RECOGNIZED = "command not recognized";
 	protected static final String START_WORKOUT = "start workout";
 	
-	protected String updatedTime;
+	/**Possible action values from Workout*/
+	public static final int START_BUTTON_CLICK = 1;
+	public static final int STOP_BUTTON_CLICK = 2;
+	public static final int PAUSE_BUTTON_CLICK = 3;
+	public static final int UPDATE_TIME = 4;
+	public static final int INITIAL_CREATE = 5;
+	public static final int BEGIN_WORKOUT = 6;
+	public static final int START_BUTTON_RESUME_CLICK = 7;
 	
 	@Override
 	public IBinder onBind(Intent arg0) {
@@ -106,7 +114,7 @@ public class HandsFreeService extends Service implements TextToSpeech.OnInitList
 		if (status == TextToSpeech.SUCCESS) {
 			mTTS.setLanguage(Locale.US);
 		}
-/*		Log.w("HFS", "hit oninit:  " + status);*/
+
 	}
 	/* Start voice recognition */
 	public void startVoiceRec() {
@@ -118,7 +126,6 @@ public class HandsFreeService extends Service implements TextToSpeech.OnInitList
 		mDoingVoiceRec = true;
 		mSpeechRec = SpeechRecognizer.createSpeechRecognizer(this);
 		mSpeechRecListen = new RecognitionListener() {
-
 
 			/** Methods to override android.speech */
 			@Override
@@ -307,7 +314,6 @@ public class HandsFreeService extends Service implements TextToSpeech.OnInitList
 		}
 	}
 	protected void createTTS() {
-/*		Log.w("HFS", "creating TTS");*/
 		/*initialize TTS (don't need to check if it is installed because for OS 4.1 and up
 		it is already included.  But maybe do checks here for older versions later */
 		if (mTTS!= null) {
@@ -334,7 +340,7 @@ public class HandsFreeService extends Service implements TextToSpeech.OnInitList
 					startListening();
 				}
 				if (utteranceID.equals(STOP_WORKOUT)) {
-					stopListening();
+					//already stopped listening
 				}
 			}
 		});
@@ -378,26 +384,50 @@ public class HandsFreeService extends Service implements TextToSpeech.OnInitList
 		Log.w("HFS", "announcing update");
 	}
 	
+	protected void respond (int action) {
+		stopListening();
+		createTTS();
+		switch(action) {
+		case START_BUTTON_CLICK:{
+			mReplies.put(TextToSpeech.Engine.KEY_PARAM_UTTERANCE_ID, WORKOUT_ALREADY_STARTED);
+			mTTS.speak("workout is in progress", TextToSpeech.QUEUE_FLUSH, mReplies);
+			break;
+		}
+		case STOP_BUTTON_CLICK:{
+			//get update time
+			mReplies.put(TextToSpeech.Engine.KEY_PARAM_UTTERANCE_ID, STOP_WORKOUT);
+			mTTS.speak("stopping workout.  Workout duration:  "+ mUpdateTime, TextToSpeech.QUEUE_FLUSH, mReplies);
+			break;
+		}
+		case PAUSE_BUTTON_CLICK:{
+			mReplies.put(TextToSpeech.Engine.KEY_PARAM_UTTERANCE_ID, PAUSE_WORKOUT);
+			mTTS.speak("pausing workout", TextToSpeech.QUEUE_FLUSH, mReplies);
+			break;
+		}
+		case UPDATE_TIME:{
+			mReplies.put(TextToSpeech.Engine.KEY_PARAM_UTTERANCE_ID, UPDATE_WORKOUT);
+			mTTS.speak(mUpdateTime + "have elapsed", TextToSpeech.QUEUE_FLUSH, mReplies);
+			break;
+		}
+		case INITIAL_CREATE:{
+			mReplies.put(TextToSpeech.Engine.KEY_PARAM_UTTERANCE_ID, START_WORKOUT);
+			mTTS.speak("begin workout", TextToSpeech.QUEUE_FLUSH, mReplies);
+			break;	
+		}
+		case START_BUTTON_RESUME_CLICK:{
+			mReplies.put(TextToSpeech.Engine.KEY_PARAM_UTTERANCE_ID, RESUME_WORKOUT);
+			mTTS.speak("continuing workout", TextToSpeech.QUEUE_FLUSH, mReplies);
+			break;	
+		}
+	}
+	}
 	public class UpdateReceiver extends BroadcastReceiver {
 		
 		public static final String UPDATE = "update";
-		
-		/**Possible action values from Workout*/
-		public static final int START_BUTTON_CLICK = 1;
-		public static final int STOP_BUTTON_CLICK = 2;
-		public static final int PAUSE_BUTTON_CLICK = 3;
-		public static final int UPDATE_TIME = 4;
-		public static final int INITIAL_CREATE = 5;
-		public static final int BEGIN_WORKOUT = 6;
-		public static final int START_BUTTON_RESUME_CLICK = 7;
-		
+				
 		@Override
 		public void onReceive(Context context, Intent intent) {
-			stopListening();
-			//just in case
-			createTTS();
 			Log.w("HFS", "broadcast received: " + intent.getAction());
-/*			Log.w("HFS", "intent action:  " + intent.getAction());*/
 
 			//get the update action and the update string
 			int action = intent.getIntExtra(Workout.UPDATE_ACTION, 0);
@@ -405,41 +435,11 @@ public class HandsFreeService extends Service implements TextToSpeech.OnInitList
 			
 			if (updateTime != "") {
 				//set this as updateText
-				updatedTime = updateTime;
+				mUpdateTime = updateTime;
 			}
 
-			switch(action) {
-				case START_BUTTON_CLICK:{
-					mReplies.put(TextToSpeech.Engine.KEY_PARAM_UTTERANCE_ID, WORKOUT_ALREADY_STARTED);
-					mTTS.speak("workout is in progress", TextToSpeech.QUEUE_FLUSH, mReplies);
-					break;
-				}
-				case STOP_BUTTON_CLICK:{
-					mReplies.put(TextToSpeech.Engine.KEY_PARAM_UTTERANCE_ID, STOP_WORKOUT);
-					mTTS.speak("stopping workout.  Workout duration:  ", TextToSpeech.QUEUE_FLUSH, mReplies);
-					break;
-				}
-				case PAUSE_BUTTON_CLICK:{
-					mReplies.put(TextToSpeech.Engine.KEY_PARAM_UTTERANCE_ID, PAUSE_WORKOUT);
-					mTTS.speak("pausing workout", TextToSpeech.QUEUE_FLUSH, mReplies);
-					break;
-				}
-				case UPDATE_TIME:{
-					mReplies.put(TextToSpeech.Engine.KEY_PARAM_UTTERANCE_ID, UPDATE_WORKOUT);
-					mTTS.speak("have elapsed", TextToSpeech.QUEUE_FLUSH, mReplies);
-					break;
-				}
-				case INITIAL_CREATE:{
-					mReplies.put(TextToSpeech.Engine.KEY_PARAM_UTTERANCE_ID, START_WORKOUT);
-					mTTS.speak("begin workout", TextToSpeech.QUEUE_FLUSH, mReplies);
-					break;	
-				}
-				case START_BUTTON_RESUME_CLICK:{
-					mReplies.put(TextToSpeech.Engine.KEY_PARAM_UTTERANCE_ID, RESUME_WORKOUT);
-					mTTS.speak("continuing workout", TextToSpeech.QUEUE_FLUSH, mReplies);
-					break;	
-				}
-			}
+			respond(action);
+
 		}
 	}
 
