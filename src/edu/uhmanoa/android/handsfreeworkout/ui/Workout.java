@@ -58,6 +58,7 @@ public class Workout extends Activity implements OnClickListener{
 	protected static final String RUNNING_STATE = "running state";
 	protected static final String STOPPED_STATE = "stopped state";
 	protected static final String PAUSE_STATE = "paused state";
+	protected static final String START_BUTTON_TEXT = "start button text";
 	
 	/** Name of the string that identifies what the response should be */
 	public static final String RESPONSE_STRING = "response string";
@@ -90,6 +91,7 @@ public class Workout extends Activity implements OnClickListener{
 	 * maybe for baseline, require user to say a phrase for x amount of seconds.  
 	 * if amp is within 5% of that, then it is a command
 	 *
+	 * persist the timer
 	 */
 	
 	
@@ -142,24 +144,27 @@ public class Workout extends Activity implements OnClickListener{
 	@Override
 	public void onClick(View view) {
 		//starting new stage
+		Log.w("Workout", "running:  " + mWorkoutRunning);
+		Log.w("Workout", "paused:  " + mWorkoutPaused);
+		Log.w("Workout", "stopped:  " + mWorkoutStopped);
 		mCommandText.setText("");
+		Log.w("Workout", "start button is pressed");
+		
 		switch (view.getId()){
 			case(R.id.speakButton):{
-				Log.w("Workout", "start button is pressed");
-				if (mWorkoutPaused) {
-					announceUpdate(HandsFreeService.UpdateReceiver.START_BUTTON_RESUME_CLICK, "");
-					setStateVariables(true, false, false);
-					resumeTimer();
-					setButtons();
-					break;
-				}
 				if (mWorkoutStopped) {
-					setStateVariables(true, false, false);
 					startHandsFreeService();
 					announceUpdate(HandsFreeService.UpdateReceiver.INITIAL_CREATE, "");
 					//reset
 					mTimerText = "0 seconds";
-					createTimer(true);
+					setStateVariables(true, false, false);
+					createTimer();
+					setButtons();
+					break;
+				}
+				if (mWorkoutPaused) {
+					announceUpdate(HandsFreeService.UpdateReceiver.START_BUTTON_RESUME_CLICK, "");
+					resumeTimer();
 					setButtons();
 					break;
 				}
@@ -170,10 +175,16 @@ public class Workout extends Activity implements OnClickListener{
 				break;
 			}
 			case (R.id.stopButton):{
+				if (mTimer != null) {
+					mTimer.stop();
+					mTimer = null;
+				}
 				setStateVariables(false, true, true);
 				announceUpdate(HandsFreeService.UpdateReceiver.STOP_BUTTON_CLICK, "");
 				Log.w("Workout", "stop button is pressed");
+				mStartButton.setText("Start");
 				setButtons();
+				mTimeWhenStopped = 0;
 				//stopWorkout();
 				break;
 			}
@@ -183,6 +194,7 @@ public class Workout extends Activity implements OnClickListener{
 					setStateVariables(false, true, false);
 					announceUpdate(HandsFreeService.UpdateReceiver.PAUSE_BUTTON_CLICK, "");
 					pauseTimer();
+					mStartButton.setText("Resume");
 					setButtons();
 				}
 				break;
@@ -239,7 +251,7 @@ public class Workout extends Activity implements OnClickListener{
 	}
 	
 	/** Creates the timer and sets the base time */
-	protected void createTimer(boolean restart) {
+	protected void createTimer() {
 		Log.w("Workout", "create timer");
 		mTimer = (CustomTimer) findViewById(R.id.timer);
 		mTimer.setOnChronometerTickListener(new OnChronometerTickListener() {
@@ -250,20 +262,15 @@ public class Workout extends Activity implements OnClickListener{
 			}
 		});
 		//for special case of restarting (starting a workout over)
-		if (restart) {
-			mTimer.setCorrectBaseAndStart(mWorkoutStopped, mWorkoutRunning,true, mWorkoutPaused, mTimeWhenStopped, mTimerText);
-		}
-		else {
-			mTimer.setCorrectBaseAndStart(mWorkoutStopped, mWorkoutRunning,mInitialCreate, mWorkoutPaused, mTimeWhenStopped, mTimerText);
-			if (!mInitialCreate) {
-				setDisplayClock(HYBRID, mTimerText);
-				if (!mWorkoutPaused) {
-					mCommandText.setText("");
-				}
-				else {
-					mPauseButton.turnOff();
-				}
+		mTimer.setCorrectBaseAndStart(mWorkoutStopped, mWorkoutRunning,mInitialCreate, mWorkoutPaused, mTimeWhenStopped, mTimerText);
+		if (!mInitialCreate) {
+			setDisplayClock(HYBRID, mTimerText);
+			if (!mWorkoutPaused) {
+				mCommandText.setText("");
 			}
+		}
+		if (mInitialCreate) {
+			mInitialCreate = false;
 		}
 	}
 	/** Destroys the timer */
@@ -288,7 +295,9 @@ public class Workout extends Activity implements OnClickListener{
 	/*Resumes the timer */
 	public void resumeTimer() {
 		//adjust the timer to the correct time
-		mTimer.setCorrectBaseAndStart(mWorkoutStopped,mWorkoutRunning,mInitialCreate, mWorkoutPaused, mTimeWhenStopped, mTimerText);
+		setStateVariables(true, false, false);
+		createTimer();
+		//mTimer.setCorrectBaseAndStart(mWorkoutStopped,mWorkoutRunning,mInitialCreate, mWorkoutPaused, mTimeWhenStopped, mTimerText);
 		mPauseButton.turnOn();
 	}
 	/** Called when activity is interrupted, like orientation change */
@@ -315,13 +324,17 @@ public class Workout extends Activity implements OnClickListener{
 		//so that can resume, but also considering first run of app
 		//set the text of the display clock
 		Log.w("Workout","initial create:  "+ mInitialCreate);
-		createTimer(false);
+
 		if (!mInitialCreate) {
 				//persist the time 
+			if (mWorkoutRunning) {
+				createTimer();
+			}
 				mDisplayClock.setText(Utils.getPrettyHybridTime(mTimerText));
 		}
 		else {
 			//initial create
+			createTimer();
 			Log.w("Workout", "initial create");
 		}
 		
@@ -355,13 +368,14 @@ public class Workout extends Activity implements OnClickListener{
 		outState.putBoolean(RUNNING_STATE, mWorkoutRunning);
 		outState.putBoolean(PAUSE_STATE, mWorkoutPaused);
 		outState.putBoolean(STOPPED_STATE, mWorkoutStopped);
+		outState.putString(START_BUTTON_TEXT, (String) mStartButton.getText());
 		
-		Log.w("Workout", "(save) timer text:  " + mTimerText);
+/*		Log.w("Workout", "(save) timer text:  " + mTimerText);
 		Log.w("Workout", "(save) time when stopped text:  " + mTimeWhenStopped);
 		Log.w("Workout", "(save) initial create:  " + mInitialCreate);
 		Log.w("Workout", "(save) running workout:  " + mWorkoutRunning);
 		Log.w("Workout", "(save) workout paused:  " + mWorkoutPaused);
-		Log.w("Workout", "(save) workout stopped:  " + mWorkoutStopped);
+		Log.w("Workout", "(save) workout stopped:  " + mWorkoutStopped);*/
 		super.onSaveInstanceState(outState);
 	}
 	
@@ -381,6 +395,7 @@ public class Workout extends Activity implements OnClickListener{
 		mWorkoutPaused = savedInstanceState.getBoolean(PAUSE_STATE);
 		mWorkoutRunning = savedInstanceState.getBoolean(RUNNING_STATE);
 		mWorkoutStopped = savedInstanceState.getBoolean(STOPPED_STATE);
+		mStartButton.setText(savedInstanceState.getString(START_BUTTON_TEXT));
 
 		Log.w("Workout", "(restore) timer text:  " + mTimerText);
 		Log.w("Workout", "(restore) time when stopped text:  " + mTimeWhenStopped);
@@ -425,7 +440,7 @@ public class Workout extends Activity implements OnClickListener{
 						//if already started, don't do anything?
 					}
 					case HandsFreeService.STOP:{
-						
+
 					}
 					case HandsFreeService.PAUSE:{
 						

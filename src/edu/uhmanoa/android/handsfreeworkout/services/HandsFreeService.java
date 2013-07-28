@@ -106,7 +106,7 @@ public class HandsFreeService extends Service implements TextToSpeech.OnInitList
 		if (status == TextToSpeech.SUCCESS) {
 			mTTS.setLanguage(Locale.US);
 		}
-		Log.w("HFS", "hit oninit:  " + status);
+/*		Log.w("HFS", "hit oninit:  " + status);*/
 	}
 	/* Start voice recognition */
 	public void startVoiceRec() {
@@ -154,8 +154,8 @@ public class HandsFreeService extends Service implements TextToSpeech.OnInitList
 
 			@Override
 			public void onReadyForSpeech(Bundle arg0) {
-				Log.w("Workout", "ready for speech");
-				Log.w("Workout", "counter:  " + mCounter);
+/*				Log.w("Workout", "ready for speech");
+				Log.w("Workout", "counter:  " + mCounter);*/
 			}
 
 			@Override
@@ -307,7 +307,7 @@ public class HandsFreeService extends Service implements TextToSpeech.OnInitList
 		}
 	}
 	protected void createTTS() {
-		Log.w("HFS", "creating TTS");
+/*		Log.w("HFS", "creating TTS");*/
 		/*initialize TTS (don't need to check if it is installed because for OS 4.1 and up
 		it is already included.  But maybe do checks here for older versions later */
 		if (mTTS!= null) {
@@ -329,7 +329,7 @@ public class HandsFreeService extends Service implements TextToSpeech.OnInitList
 			/**need this so speech recognition doesn't pick up on the feedback */
 			@Override
 			public void onDone(String utteranceID) {
-				Log.e("Workout", "utterance:  " + utteranceID);
+/*				Log.e("Workout", "utterance:  " + utteranceID);*/
 				if (!utteranceID.equals(STOP_WORKOUT)) {
 					startListening();
 				}
@@ -396,8 +396,8 @@ public class HandsFreeService extends Service implements TextToSpeech.OnInitList
 			stopListening();
 			//just in case
 			createTTS();
-			Log.w("HFS", "broadcast received");
-			Log.w("HFS", "intent action:  " + intent.getAction());
+			Log.w("HFS", "broadcast received: " + intent.getAction());
+/*			Log.w("HFS", "intent action:  " + intent.getAction());*/
 
 			//get the update action and the update string
 			int action = intent.getIntExtra(Workout.UPDATE_ACTION, 0);

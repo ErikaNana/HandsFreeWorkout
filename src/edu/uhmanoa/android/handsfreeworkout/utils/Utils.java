@@ -42,7 +42,7 @@ public class Utils {
 			//create a new file with the complete path name
 			mediaFile = new File(mediaStorageDir.getPath() + File.separator + "recording.3gp");
 		}
-		Log.w("Workout", mediaFile.getAbsolutePath());
+/*		Log.w("Workout", mediaFile.getAbsolutePath());*/
 		return mediaFile.getAbsolutePath();
 	}
 	
@@ -114,7 +114,10 @@ public class Utils {
 		if (time == null) {
 			return "0 seconds";
 		}
-		if (time == "0 seconds") {
+		if (time.equals("0 seconds")) {
+			return "0 seconds";
+		}
+		if (time.equals("")) {
 			return "0 seconds";
 		}
 		String correctSeconds = " seconds";
