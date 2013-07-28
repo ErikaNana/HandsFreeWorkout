@@ -50,7 +50,8 @@ public class Workout extends Activity implements OnClickListener{
 	protected boolean mWorkoutRunning;
 	protected boolean mWorkoutStopped;
 	protected boolean mWorkoutPaused;
-
+	protected long mCurrentBase;
+	
 	/**Time to be sent for update/stop app*/
 	protected String mUpdateTime;
 
@@ -65,6 +66,7 @@ public class Workout extends Activity implements OnClickListener{
 	protected static final String PAUSE_STATE = "paused state";
 	protected static final String START_BUTTON_TEXT = "start button text";
 	protected static final String SAVED_UPDATE_TIME = "saved update time";
+	protected static final String SAVED_CURRENT_BASE = "saved current base";
 
 	/** Name of the string that identifies what the response should be */
 	public static final String RESPONSE_STRING = "response string";
@@ -179,7 +181,7 @@ public class Workout extends Activity implements OnClickListener{
 					//reset
 					mTimerText = "0 seconds";
 					setStateVariables(true, false, false);
-					createTimer();
+					createTimer(0);
 					setButtons();
 					mStartButton.setText("Resume");
 					flashText("Begin");
@@ -269,27 +271,24 @@ public class Workout extends Activity implements OnClickListener{
 	}
 
 	/** Creates the timer and sets the base time */
-	protected void createTimer() {
+	protected void createTimer(long baseTime) {
 		Log.w("Workout", "create timer");
 		mTimer = (CustomTimer) findViewById(R.id.timer);
 		mTimer.setOnChronometerTickListener(new OnChronometerTickListener() {
 
 			@Override
 			public void onChronometerTick(Chronometer chronometer) {
-				Log.w("Workout", "tick tock");
+				//Log.w("Workout", "tick tock");
 				setDisplayClock(HYBRID);
 			}
 		});
 
-		mTimer.setCorrectBaseAndStart(mWorkoutStopped, mWorkoutRunning,mInitialCreate, mWorkoutPaused, mTimeWhenStopped, mTimerText);
+		mTimer.setCorrectBaseAndStart(mWorkoutStopped, mWorkoutRunning,mInitialCreate, mWorkoutPaused, mTimeWhenStopped, mTimerText,baseTime);
 		if (!mInitialCreate) {
 			setDisplayClock(HYBRID, mTimerText);
 			if (!mWorkoutPaused) {
 				mCommandText.setText("");
 			}
-		}
-		if (mInitialCreate) {
-			mInitialCreate = false;
 		}
 	}
 	/** Destroys the timer */
@@ -312,13 +311,14 @@ public class Workout extends Activity implements OnClickListener{
 	public void resumeTimer() {
 		//adjust the timer to the correct time
 		setStateVariables(true, false, false);
-		createTimer();
+		createTimer(0);
 	}
 	/** Called when activity is interrupted, like orientation change */
 	@Override
 	protected void onPause() {
 		Log.w("Workout", "activity interrupted");
 		if (mTimer != null) {
+			mCurrentBase = mTimer.getBase();
 			mTimerText = (String) mTimer.getText();
 			Log.w("Workout", "(on pause) timer Text:  " + mTimerText);
 			//for persistence
@@ -341,14 +341,16 @@ public class Workout extends Activity implements OnClickListener{
 		if (!mInitialCreate) {
 				//persist the time 
 			if (mWorkoutRunning) {
-				createTimer();
+				createTimer(mCurrentBase);
 			}
 				mDisplayClock.setText(Utils.getPrettyHybridTime(mTimerText));
 		}
 		else {
 			//initial create
-			createTimer();
+			createTimer(0);
 			Log.w("Workout", "initial create");
+			mInitialCreate = false;
+
 		}
 
 		setButtons();
@@ -389,6 +391,7 @@ public class Workout extends Activity implements OnClickListener{
 		outState.putBoolean(STOPPED_STATE, mWorkoutStopped);
 		outState.putString(START_BUTTON_TEXT, (String) mStartButton.getText());
 		outState.putString(SAVED_UPDATE_TIME, mUpdateTime);
+		outState.putLong(SAVED_CURRENT_BASE, mCurrentBase);
 
 /*		Log.w("Workout", "(save) timer text:  " + mTimerText);
 		Log.w("Workout", "(save) time when stopped text:  " + mTimeWhenStopped);
@@ -417,6 +420,7 @@ public class Workout extends Activity implements OnClickListener{
 		mWorkoutStopped = savedInstanceState.getBoolean(STOPPED_STATE);
 		mStartButton.setText(savedInstanceState.getString(START_BUTTON_TEXT));
 		mUpdateTime = savedInstanceState.getString(SAVED_UPDATE_TIME);
+		mCurrentBase = savedInstanceState.getLong(SAVED_CURRENT_BASE);
 
 		Log.w("Workout", "(restore) timer text:  " + mTimerText);
 		Log.w("Workout", "(restore) time when stopped text:  " + mTimeWhenStopped);

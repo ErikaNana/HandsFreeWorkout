@@ -22,7 +22,6 @@ public class Welcome extends Activity implements View.OnClickListener, OnInitLis
 	
 	protected void onCreate(Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
-		mTTS = new TextToSpeech(getApplicationContext(),this);
 		//Remove title bar
 		this.requestWindowFeature(Window.FEATURE_NO_TITLE);
 		setContentView(R.layout.welcome);
@@ -69,10 +68,19 @@ public class Welcome extends Activity implements View.OnClickListener, OnInitLis
 	}
 	
 	@Override
+	protected void onResume(){
+		if (mTTS == null) {
+			mTTS = new TextToSpeech(getApplicationContext(),this);
+		}
+		super.onResume();
+	}
+	@Override
 	public void onDestroy() {
 		super.onDestroy();
-		mTTS.stop();
-		mTTS.shutdown();
-		mTTS = null;
+		if (mTTS != null) {
+			mTTS.stop();
+			mTTS.shutdown();
+			mTTS = null;
+		}
 	}
 }
