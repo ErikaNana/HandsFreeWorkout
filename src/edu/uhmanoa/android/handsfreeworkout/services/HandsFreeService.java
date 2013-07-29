@@ -60,7 +60,10 @@ public class HandsFreeService extends Service implements TextToSpeech.OnInitList
 	public static final int STOP = 1;
 	public static final int START = 2;
 	public static final int PAUSE = 3;
+	
+	/**Commands that don't require announcing to Workout*/
 	public static final int UPDATE = 4;
+	public static final int COMMAND_NOT_RECOGNIZED_RESULT = 8;
 	
 	/** Keys for hash table of replies */
 	protected static final String WORKOUT_ALREADY_STARTED = "workout already started";
@@ -84,6 +87,14 @@ public class HandsFreeService extends Service implements TextToSpeech.OnInitList
 	public static final int BEGIN_WORKOUT = 6;
 	public static final int START_BUTTON_RESUME_CLICK = 7;
 	
+	/**Current state of the application*/
+	protected boolean mWorkoutRunning;
+	protected boolean mWorkoutPaused;
+	protected boolean mWorkoutStopped;
+	
+	/**Command that was said*/
+	protected int command;
+	
 	@Override
 	public IBinder onBind(Intent arg0) {
 		return null;
@@ -92,10 +103,14 @@ public class HandsFreeService extends Service implements TextToSpeech.OnInitList
 	public void onCreate() {
 		createTTS();
 		Log.w("HFS", "on create of service");
-		IntentFilter iFilter = new IntentFilter (UpdateReceiver.UPDATE);
+		IntentFilter iFilter = new IntentFilter (UpdateReceiver.GET_UPDATE);
 		iFilter.addCategory(Intent.CATEGORY_DEFAULT);
+		IntentFilter updateFilter = new IntentFilter(UpdateReceiver.RECEIVE_CURRENT_STATE);
+		updateFilter.addCategory(Intent.CATEGORY_DEFAULT);
+		
 		mReceiver = new UpdateReceiver();
 		this.registerReceiver(mReceiver, iFilter);
+		this.registerReceiver(mReceiver, updateFilter);
 		mHandler = new Handler();
 		//for persistence
 		if(mRecorder == null) {
@@ -167,6 +182,7 @@ public class HandsFreeService extends Service implements TextToSpeech.OnInitList
 
 			@Override
 			public void onResults(Bundle bundle) {
+				mCounter = 0;
 				Log.w("Workout", "on Results");
 				mSpeechRecAlive = true;	
 				mFinished = true;
@@ -174,7 +190,20 @@ public class HandsFreeService extends Service implements TextToSpeech.OnInitList
 				stopVoiceRec();
 				//handle the output
 				ArrayList<String> results = bundle.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION);
-/*				handleInput(results);*/
+				command = COMMAND_NOT_RECOGNIZED_RESULT;
+				if (results.contains("start")) {
+					command = START;
+				}
+				if (results.contains("pause")) {
+					command = PAUSE;
+				}
+				if (results.contains("stop")) {
+					command = STOP;
+				}
+				if (results.contains("update")) {
+					command = UPDATE;
+				}
+				announceGetCurrentState();
 			}
 
 			@Override
@@ -225,6 +254,7 @@ public class HandsFreeService extends Service implements TextToSpeech.OnInitList
 			if (mCounter >= 4) {
 				stopVoiceRec();
 				Log.w("WORKOUT", "SILENCE");
+				mReplies.put(TextToSpeech.Engine.KEY_PARAM_UTTERANCE_ID, SILENCE);
 				mTTS.speak("SILENCE", TextToSpeech.QUEUE_FLUSH,mReplies);
 				mCounter = 0;
 			}
@@ -313,6 +343,16 @@ public class HandsFreeService extends Service implements TextToSpeech.OnInitList
 			stopVoiceRec();
 		}
 	}
+	
+	/**Need to know current state of app*/
+	protected void handleInput(ArrayList<String> results) {
+		if (mWorkoutRunning){
+			if (results.contains("start")){
+				stopListening();
+				mTTS.speak("SILENCE", TextToSpeech.QUEUE_FLUSH,mReplies);
+			}
+		}
+	}
 	protected void createTTS() {
 		/*initialize TTS (don't need to check if it is installed because for OS 4.1 and up
 		it is already included.  But maybe do checks here for older versions later */
@@ -335,7 +375,7 @@ public class HandsFreeService extends Service implements TextToSpeech.OnInitList
 			/**need this so speech recognition doesn't pick up on the feedback */
 			@Override
 			public void onDone(String utteranceID) {
-/*				Log.e("Workout", "utterance:  " + utteranceID);*/
+				Log.e("Workout", "utterance:  " + utteranceID);
 				if (!utteranceID.equals(STOP_WORKOUT)) {
 					startListening();
 				}
@@ -384,6 +424,11 @@ public class HandsFreeService extends Service implements TextToSpeech.OnInitList
 		Log.w("HFS", "announcing update");
 	}
 	
+	protected void announceGetCurrentState() {
+		Intent announce = new Intent(Workout.ServiceReceiver.GET_CURRENT_STATE);
+		this.sendBroadcast(announce);
+		Log.w("HFS", "announcing get current state");
+	}
 	protected void respond (int action) {
 		stopListening();
 		createTTS();
@@ -419,27 +464,74 @@ public class HandsFreeService extends Service implements TextToSpeech.OnInitList
 			mTTS.speak("continuing workout", TextToSpeech.QUEUE_FLUSH, mReplies);
 			break;	
 		}
+		case COMMAND_NOT_RECOGNIZED_RESULT:{
+			mReplies.put(TextToSpeech.Engine.KEY_PARAM_UTTERANCE_ID, COMMAND_NOT_RECOGNIZED);
+			mTTS.speak("command not recognized", TextToSpeech.QUEUE_FLUSH, mReplies);
+			break;	
+		}
 	}
 	}
 	public class UpdateReceiver extends BroadcastReceiver {
 		
-		public static final String UPDATE = "update";
-				
+		public static final String GET_UPDATE = "update";
+		public static final String RECEIVE_CURRENT_STATE = "receive current state";
+		
+		/**Names of the current states*/
+		public static final String WORKOUT_RUNNING = "workout running";
+		public static final String WORKOUT_PAUSED = "workout paused";
+		public static final String WORKOUT_STOPPED = "Workout stopped";
+		
 		@Override
 		public void onReceive(Context context, Intent intent) {
-			Log.w("HFS", "broadcast received: " + intent.getAction());
+			String type = intent.getAction();
+			if (type.equals(GET_UPDATE)) {
+				Log.w("HFS", "broadcast received: " + intent.getAction());
 
-			//get the update action and the update string
-			int action = intent.getIntExtra(Workout.UPDATE_ACTION, 0);
-			String updateTime = intent.getStringExtra(Workout.UPDATE_TIME_STRING);
-			
-			if (updateTime != "") {
-				//set this as updateText
-				mUpdateTime = updateTime;
+				//get the update action and the update string
+				int action = intent.getIntExtra(Workout.UPDATE_ACTION, 0);
+				String updateTime = intent.getStringExtra(Workout.UPDATE_TIME_STRING);
+				
+				if (updateTime != "") {
+					//set this as updateText
+					mUpdateTime = updateTime;
+				}
+				respond(action);
 			}
-
-			respond(action);
-
+			if (type.equals(RECEIVE_CURRENT_STATE)) {
+				Log.w("HFS", "receiving the current state");
+				mWorkoutRunning = intent.getBooleanExtra(WORKOUT_RUNNING, false);
+				mWorkoutPaused = intent.getBooleanExtra(WORKOUT_PAUSED, false);
+				mWorkoutStopped = intent.getBooleanExtra(WORKOUT_STOPPED, false);
+				Log.w("HFS","workout running:  " + mWorkoutRunning);
+				Log.w("HFS","workout paused:  " + mWorkoutPaused);
+				Log.w("HFS","workout stopped:  " + mWorkoutStopped);
+				//store the current state
+				//do logic regarding the states here
+				Log.w("HFS", "command:  " + command);
+				switch (command) {
+					case START:{
+						respond(START_BUTTON_CLICK);
+						//broadcast to UI
+						break;
+					}
+					case STOP:{
+						announceGetUpdate(HandsFreeService.STOP);
+						break;
+					}
+					case PAUSE:{
+						respond(PAUSE_BUTTON_CLICK);
+						break;
+					}
+					case UPDATE:{
+						//get time from UI
+						announceGetUpdate(HandsFreeService.UPDATE);
+						break;
+					}
+					default:{
+						respond(COMMAND_NOT_RECOGNIZED_RESULT);
+					}
+				}
+			}
 		}
 	}
 

@@ -62,6 +62,10 @@ public class Welcome extends Activity implements View.OnClickListener, OnInitLis
 	@Override
 	public void onInit(int status) {
 		if (status == TextToSpeech.SUCCESS) {
+			//just in case again
+			if (mTTS == null) {
+				mTTS = new TextToSpeech(getApplicationContext(),this);
+			}
 			mTTS.setLanguage(Locale.US);
 		}
 		startButton.setEnabled(true);

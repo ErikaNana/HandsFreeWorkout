@@ -53,10 +53,10 @@ public class Utils {
 	} 
 	
 	/**Get the correct update string */
-	public static String getUpdate(String inputTime) {
+	public static String getUpdate(String inputTime, boolean getLagTime) {
 		int hours = 0;
 		int minutes;
-		int seconds;
+		int seconds = 0;
 		
 		String correctHour = " hours,";
 		String correctMinute = " minutes and ";
@@ -64,21 +64,35 @@ public class Utils {
 		
 		String timeString = "";
 		//make sure it is a valid time
-		if (inputTime.matches("([0-9][0-9]:[0-9][0-9])|([0-9][0-9]:[0-9][0-9]:[0-9][0-9])")){	
+		if (inputTime.matches("([0-9][0-9]:[0-9][0-9])|([0-9]:[0-9][0-9]:[0-9][0-9])")){	
 			//MM:SS or H:MM:SS form
 			String[] time = inputTime.split(":");
 			//there are hours
 			if (time.length > 2) {
 				hours = Integer.valueOf(time[0]);
 				minutes = Integer.valueOf(time[1]);
-				seconds = Integer.valueOf(time[2]);
+				//account for lag
+				if (getLagTime) {
+					seconds = Integer.valueOf(time[2]) + 1;
+					Log.w("Utils", "getting lag time");
+				}
+				if (!getLagTime) {
+					seconds = Integer.valueOf(time[2]);
+				}
 				if (hours == 1) {
 					correctHour = " hour, ";
 				}
 			}
 			else {
 				minutes = Integer.valueOf(time[0]);
-				seconds = Integer.valueOf(time[1]);
+				//account for lag
+				if (getLagTime) {
+					seconds = Integer.valueOf(time[1]) + 1;
+					Log.w("Utils", "getting lag time");
+				}
+				if (!getLagTime) {
+					seconds = Integer.valueOf(time[1]);
+				}
 			}
 	
 			if (minutes == 1) {
@@ -117,7 +131,7 @@ public class Utils {
 		String timeString = "";
 		//make sure it's a valid time
 		
-		if (time.matches("([0-9][0-9]:[0-9][0-9])|([0-9][0-9]:[0-9][0-9]:[0-9][0-9])")){
+		if (time.matches("([0-9][0-9]:[0-9][0-9])|([0-9]:[0-9][0-9]:[0-9][0-9])")){
 			//MM:SS or H:MM:SS form
 			String[] timeArray = time.split(":");
 			//there are hours
