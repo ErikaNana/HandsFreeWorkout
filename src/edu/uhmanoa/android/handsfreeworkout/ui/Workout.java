@@ -93,6 +93,10 @@ public class Workout extends Activity implements OnClickListener{
 	/**Extra for update */
 	public static final String UPDATE_TIME_STRING = "update value string";
 	public static final String UPDATE_ACTION = "update action";
+	
+	/**Booleans to show which part of the app is doing the updating*/
+	protected static final boolean UI = true;
+	protected static final boolean HF_SERVICE = false;
 	/**
 	 * ISSUES TO DEAL WITH STILL:
 	 * accidental loud noises
@@ -175,64 +179,86 @@ public class Workout extends Activity implements OnClickListener{
 
 		switch (view.getId()){
 			case(R.id.speakButton):{
-				mCommandText.setTextColor(Color.GREEN);
-				if (mWorkoutStopped) {
-					startHandsFreeService();
-					announceUpdate(HandsFreeService.INITIAL_CREATE, "");
-					//reset
-					mTimerText = "0 seconds";
-					setStateVariables(true, false, false);
-					createTimer(0);
-					setButtons();
-					mStartButton.setText("Resume");
-					flashText("Begin");
-					break;
-				}
-				if (mWorkoutPaused) {
-					announceUpdate(HandsFreeService.START_BUTTON_RESUME_CLICK, "");
-					resumeTimer();
-					setButtons();
-					flashText("Resume");
-					break;
-				}
-				else{
-					//just in case
-					announceUpdate(HandsFreeService.START_BUTTON_CLICK, "");
-				}
+				startButtonClicked(UI);
 				break;
 			}
 			case (R.id.stopButton):{
-				if (!mWorkoutStopped) {
-					if (mTimer != null) {
-						mTimer.stop();
-						mTimer = null;
-					}
-					setStateVariables(false, true, true);
-					announceUpdate(HandsFreeService.STOP_BUTTON_CLICK, mUpdateTime);
-					Log.w("Workout", "stop button is pressed");
-					mStartButton.setText("Start");
-					setButtons();
-					mTimeWhenStopped = 0;	
-					mCommandText.setText("Stop");
-					mCommandText.setTextColor(Color.RED);
-				}
+				stopButtonClicked(UI);
 				break;
 			}
 			case (R.id.pauseButton):{
-				Log.w("Workout", "pause button is pressed");
-				if (!mWorkoutPaused) {
-					setStateVariables(false, true, false);
-					announceUpdate(HandsFreeService.PAUSE_BUTTON_CLICK, "");
-					pauseTimer();
-					setButtons();
-					mCommandText.setText("Pause");
-					mCommandText.setTextColor(Color.YELLOW);
-				}
+				pauseButtonClicked(UI);
 				break;
 			}
 		}		
 	}
-
+	
+	/**If UI is the one updating, then also announce*/
+	public void startButtonClicked (boolean UI) {
+		mCommandText.setTextColor(Color.GREEN);
+		if (mWorkoutStopped) {
+			startHandsFreeService();
+			if (UI) {
+				announceUpdate(HandsFreeService.INITIAL_CREATE, "");	
+			}
+			//reset
+			mTimerText = "0 seconds";
+			setStateVariables(true, false, false);
+			createTimer(0);
+			setButtons();
+			mStartButton.setText("Resume");
+			flashText("Begin");
+			return;
+		}
+		if (mWorkoutPaused) {
+			if (UI) {
+				announceUpdate(HandsFreeService.START_BUTTON_RESUME_CLICK, "");	
+			}
+			resumeTimer();
+			setButtons();
+			flashText("Resume");
+			return;
+		}
+		else{
+			//just in case
+			if (UI) {
+				announceUpdate(HandsFreeService.START_BUTTON_CLICK, "");
+			}
+		}
+	}
+	
+	public void pauseButtonClicked(boolean UI) {
+		Log.w("Workout", "pause button is pressed");
+		if (!mWorkoutPaused) {
+			setStateVariables(false, true, false);
+			if (UI) {
+				announceUpdate(HandsFreeService.PAUSE_BUTTON_CLICK, "");
+			}
+			pauseTimer();
+			setButtons();
+			mCommandText.setText("Pause");
+			mCommandText.setTextColor(Color.YELLOW);
+		}
+	}
+	
+	public void stopButtonClicked(boolean UI) {
+		if (!mWorkoutStopped) {
+			if (mTimer != null) {
+				mTimer.stop();
+				mTimer = null;
+			}
+			setStateVariables(false, true, true);
+			if (UI) {
+				announceUpdate(HandsFreeService.STOP_BUTTON_CLICK, mUpdateTime);	
+			}
+			Log.w("Workout", "stop button is pressed");
+			mStartButton.setText("Start");
+			setButtons();
+			mTimeWhenStopped = 0;	
+			mCommandText.setText("Stop");
+			mCommandText.setTextColor(Color.RED);
+		}
+	}
 	/**sets the text for the display clock.  it is called at every tick of the clock */
 	public void setDisplayClock(int mode) {
 		if(mTimer == null) {
@@ -454,7 +480,7 @@ public class Workout extends Activity implements OnClickListener{
 
 	public class ServiceReceiver extends BroadcastReceiver {
 
-		public static final String UPDATE = "get update";
+		public static final String UPDATE = "update";
 		public static final String GET_CURRENT_STATE = "get current state";
 		
 		@Override
@@ -467,14 +493,16 @@ public class Workout extends Activity implements OnClickListener{
 				//update the UI to reflect the current state
 				switch (action) {
 					case HandsFreeService.START:{
-						//if already started, don't do anything?
+						startButtonClicked(HF_SERVICE);
 						break;
 					}
 					case HandsFreeService.STOP:{
 						announceUpdate(HandsFreeService.STOP_BUTTON_CLICK, mUpdateTime);
+						stopButtonClicked(HF_SERVICE);
 						break;
 					}
 					case HandsFreeService.PAUSE:{
+						pauseButtonClicked(HF_SERVICE);
 						break;
 					}
 					case HandsFreeService.UPDATE:{
