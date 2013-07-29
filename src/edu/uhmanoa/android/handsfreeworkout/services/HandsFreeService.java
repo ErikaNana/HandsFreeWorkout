@@ -31,6 +31,11 @@ public class HandsFreeService extends Service implements TextToSpeech.OnInitList
 	protected MediaRecorder mRecorder; //recorder that listens for a command
 	protected Handler mHandler;
 	
+	/**Intents*/
+	protected Intent mRecognizerIntent;
+	protected Intent mGetUpdateIntent;
+	protected Intent mGetCurrentStateIntent;
+	
 	protected boolean mSpeechRecAlive;
 	protected boolean mFinished; //if speech recognition heard something
 	protected boolean mDoingVoiceRec;
@@ -43,6 +48,7 @@ public class HandsFreeService extends Service implements TextToSpeech.OnInitList
 	/* So can differentiate between what needs to be said in TTS */
 	protected HashMap <String, String> mReplies = new HashMap<String, String>();
 	protected TextToSpeech mTTS;
+	
 	/* Value to determine what needs to be said */
 	protected int mResponse;
 	
@@ -51,7 +57,6 @@ public class HandsFreeService extends Service implements TextToSpeech.OnInitList
 	
 	/** The time frequency at which check the max amplitude of the recording */
 	protected static final long CHECK_FREQUENCY = 350L; 
-	
 	
 	/**Name of the current application state to be passed to Workout*/
 	public static final String APPLICATION_STATE = "application state";
@@ -147,19 +152,15 @@ public class HandsFreeService extends Service implements TextToSpeech.OnInitList
 			/** Methods to override android.speech */
 			@Override
 			public void onBeginningOfSpeech() {
-				Log.w("HFS", "on beginning of speech");
 				mSpeechRecAlive = true;
 			}
 
 			@Override
 			public void onBufferReceived(byte[] arg0) {
-				Log.w("HFS", "buffer received");	
 			}
 
 			@Override
 			public void onEndOfSpeech() {
-				Log.w("HFS", "end of speech");
-
 			}
 
 			@Override
@@ -178,8 +179,6 @@ public class HandsFreeService extends Service implements TextToSpeech.OnInitList
 
 			@Override
 			public void onReadyForSpeech(Bundle arg0) {
-/*				Log.w("HFS", "ready for speech");
-				Log.w("HFS", "counter:  " + mCounter);*/
 			}
 
 			@Override
@@ -219,12 +218,14 @@ public class HandsFreeService extends Service implements TextToSpeech.OnInitList
 			}
 		};
 		mSpeechRec.setRecognitionListener(mSpeechRecListen);
-		Intent mIntent = new Intent (RecognizerIntent.ACTION_RECOGNIZE_SPEECH);
-		//this extra is required
-		mIntent.putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM);
-		// text prompt to show to the user when asking them to speak. 
-		mIntent.putExtra(RecognizerIntent.EXTRA_PROMPT, "Voice Recognition");
-		mSpeechRec.startListening(mIntent);
+		if (mRecognizerIntent == null) {
+			mRecognizerIntent = new Intent (RecognizerIntent.ACTION_RECOGNIZE_SPEECH);
+			//this extra is required
+			mRecognizerIntent.putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM);
+			// text prompt to show to the user when asking them to speak. 
+			mRecognizerIntent.putExtra(RecognizerIntent.EXTRA_PROMPT, "Voice Recognition");
+		}
+		mSpeechRec.startListening(mRecognizerIntent);
 	}
 
 	/* Stop speech recognition */
@@ -244,7 +245,7 @@ public class HandsFreeService extends Service implements TextToSpeech.OnInitList
 			Log.w("HFS", "checking if alive");
 			if (mSpeechRecAlive) {
 				if (mFinished) {
-					Log.w("HFS", "confirmed result");
+/*					Log.w("HFS", "confirmed result");*/
 					mSpeechRecAlive = false;
 					//reset mFinished
 					mFinished = false;
@@ -378,7 +379,7 @@ public class HandsFreeService extends Service implements TextToSpeech.OnInitList
 			public void onDone(String utteranceID) {
 				Log.e("HFS", "utterance:  " + utteranceID);
 				if (!utteranceID.equals(STOP_WORKOUT)) {
-				//delay it to be safe
+					//delay it to be safe
 					mHandler.removeCallbacks(checkSpeechRec);
 					mHandler.removeCallbacks(checkSpeechRec);
 					mHandler.postDelayed(new Runnable() {
@@ -386,7 +387,7 @@ public class HandsFreeService extends Service implements TextToSpeech.OnInitList
 						public void run() {
 							startListening();
 						}
-					}, 1000L);
+					}, 250L);
 
 				}
 				if (utteranceID.equals(STOP_WORKOUT)) {
@@ -427,18 +428,22 @@ public class HandsFreeService extends Service implements TextToSpeech.OnInitList
 	
 	/**Announce to Workout the new application state*/
 	protected void announceGetUpdate(int action) {
-		Intent announce = new Intent(Workout.ServiceReceiver.UPDATE);
-		announce.putExtra(APPLICATION_STATE, action);
-		announce.addCategory(Intent.CATEGORY_DEFAULT);
-		this.sendBroadcast(announce);
+		if (mGetUpdateIntent == null) {
+			mGetUpdateIntent = new Intent(Workout.ServiceReceiver.UPDATE);
+			mGetUpdateIntent.addCategory(Intent.CATEGORY_DEFAULT);
+		}
+		mGetUpdateIntent.putExtra(APPLICATION_STATE, action);
+		this.sendBroadcast(mGetUpdateIntent);
 		Log.w("HFS", "announcing update");
 	}
 	
 	/**Sends a broadcast to get the current state from Workout.  Only called if command is
 	 * recognized in VoiceRec */
 	protected void announceGetCurrentState() {
-		Intent announce = new Intent(Workout.ServiceReceiver.GET_CURRENT_STATE);
-		this.sendBroadcast(announce);
+		if (mGetCurrentStateIntent == null) {
+			mGetCurrentStateIntent = new Intent(Workout.ServiceReceiver.GET_CURRENT_STATE);			
+		}
+		this.sendBroadcast(mGetCurrentStateIntent);
 		Log.w("HFS", "announcing get current state");
 	}
 	protected void respond (int action) {

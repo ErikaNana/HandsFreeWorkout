@@ -17,10 +17,10 @@ public class CustomTimer extends Chronometer{
 	}
 	
 	/** Sets the correct base for the timer and runs it */
-	public void setCorrectBaseAndStart(boolean workoutStopped, boolean workoutRunning, boolean initialCreate, boolean pause, long timeWhenStopped, String timerText, long baseTime) {
-		Log.w("CustomTimer", "initialCreate:  " + initialCreate);
-		Log.w("CustomTimer", "pause:  " + pause);
-		Log.w("CustomTimer", "timeWhenStopped:  " + timeWhenStopped);
+	public void setCorrectBaseAndStart(boolean workoutStopped, boolean workoutRunning, boolean initialCreate, boolean mWorkoutPaused, long timeWhenStopped, String timerText, long baseTime) {
+/*		Log.w("CustomTimer", "initialCreate:  " + initialCreate);*/
+		Log.w("CustomTimer", "workoutPaused:  " + mWorkoutPaused);
+/*		Log.w("CustomTimer", "timeWhenStopped:  " + timeWhenStopped);*/
 		Log.w("CustomTimer", "timerText:  " + timerText);
 		Log.w("CustomTimer", "workout stopped:  " + workoutStopped);
 		Log.w("CustomTimer", "workout running:  " + workoutRunning);
@@ -28,7 +28,7 @@ public class CustomTimer extends Chronometer{
 		this.setText(timerText);
 		if (initialCreate) {
 			//use "this" keyword because modifying the current object
-			Log.w("CustomTimer","in initial create");
+/*			Log.w("CustomTimer","in initial create");*/
 			this.setBase(SystemClock.elapsedRealtime());
 			this.start();
 		}
@@ -44,11 +44,11 @@ public class CustomTimer extends Chronometer{
 				this.start();
 			}
 			if (workoutStopped) {
-				Log.w("CustomTimer", "in workout stopped");
+/*				Log.w("CustomTimer", "in workout stopped");*/
 				this.setBase(SystemClock.elapsedRealtime() + timeWhenStopped);			
 			}
-			if (pause) {
-				Log.w("CustomTimer", "in workout paused");
+			if (mWorkoutPaused) {
+/*				Log.w("CustomTimer", "in workout paused");*/
 				this.setBase(SystemClock.elapsedRealtime() + timeWhenStopped);
 			}
 		}

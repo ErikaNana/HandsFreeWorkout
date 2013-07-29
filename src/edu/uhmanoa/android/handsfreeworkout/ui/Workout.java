@@ -41,8 +41,10 @@ public class Workout extends Activity implements OnClickListener{
 	protected CustomTimer mTimer; 
 	protected TextView mDisplayClock;
 	protected ServiceReceiver mReceiver;
-	protected Intent mListeningServiceIntent;
+	
 	protected Intent mHandsFreeIntent;
+	protected Intent mCurrentStateIntent;
+	protected Intent mUpdateIntent;
 
 	protected long mTimeWhenStopped;
 	protected String mTimerText;
@@ -462,20 +464,24 @@ public class Workout extends Activity implements OnClickListener{
 
 	public void startHandsFreeService() {
 		Log.w("Workout", "starting hands free service");
-		mHandsFreeIntent = new Intent(this, HandsFreeService.class);
+		if (mHandsFreeIntent == null) {
+			mHandsFreeIntent = new Intent(this, HandsFreeService.class);
+		}
 		startService(mHandsFreeIntent);
 	}
 
 	protected void announceUpdate(int action, String updateTime) {
 		Log.w("Workout", "announcing update");
-		Intent announce = new Intent(HandsFreeService.UpdateReceiver.GET_UPDATE);
-		announce.putExtra(UPDATE_ACTION, action);
-		if (updateTime != "") {
-			announce.putExtra(UPDATE_TIME_STRING, updateTime);	
+		if (mUpdateIntent == null) {
+			mUpdateIntent = new Intent(HandsFreeService.UpdateReceiver.GET_UPDATE);
+			//broadcast with default category
+			mUpdateIntent.addCategory(Intent.CATEGORY_DEFAULT);
 		}
-		//broadcast with default category
-		announce.addCategory(Intent.CATEGORY_DEFAULT);
-		this.sendBroadcast(announce);
+		mUpdateIntent.putExtra(UPDATE_ACTION, action);
+		if (updateTime != "") {
+			mUpdateIntent.putExtra(UPDATE_TIME_STRING, updateTime);	
+		}
+		this.sendBroadcast(mUpdateIntent);
 	}
 
 	public class ServiceReceiver extends BroadcastReceiver {
@@ -522,13 +528,15 @@ public class Workout extends Activity implements OnClickListener{
 			}
 			if (intent.getAction().equals(GET_CURRENT_STATE)) {
 				Log.w("Workout", "receiving get current state");
-				//announce the current state
-				Intent announce = new Intent(HandsFreeService.UpdateReceiver.RECEIVE_CURRENT_STATE);
-				announce.putExtra(HandsFreeService.UpdateReceiver.WORKOUT_RUNNING, mWorkoutRunning);
-				announce.putExtra(HandsFreeService.UpdateReceiver.WORKOUT_PAUSED, mWorkoutPaused);
-				announce.putExtra(HandsFreeService.UpdateReceiver.WORKOUT_STOPPED, mWorkoutStopped);
-				announce.addCategory(Intent.CATEGORY_DEFAULT);
-				sendBroadcast(announce);
+				//announce the current state, reuse to be more efficient
+				if (mCurrentStateIntent == null) {
+					mCurrentStateIntent = new Intent(HandsFreeService.UpdateReceiver.RECEIVE_CURRENT_STATE);
+					mCurrentStateIntent.addCategory(Intent.CATEGORY_DEFAULT);
+				}
+				mCurrentStateIntent.putExtra(HandsFreeService.UpdateReceiver.WORKOUT_RUNNING, mWorkoutRunning);
+				mCurrentStateIntent.putExtra(HandsFreeService.UpdateReceiver.WORKOUT_PAUSED, mWorkoutPaused);
+				mCurrentStateIntent.putExtra(HandsFreeService.UpdateReceiver.WORKOUT_STOPPED, mWorkoutStopped);
+				sendBroadcast(mCurrentStateIntent);
 				Log.w("Workout", "announcing receiving curent state");
 			}
 		}
