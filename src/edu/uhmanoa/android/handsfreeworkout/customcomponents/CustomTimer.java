@@ -28,7 +28,6 @@ public class CustomTimer extends Chronometer{
 		this.setText(timerText);
 		if (initialCreate) {
 			//use "this" keyword because modifying the current object
-/*			Log.w("CustomTimer","in initial create");*/
 			this.setBase(SystemClock.elapsedRealtime());
 			this.start();
 		}

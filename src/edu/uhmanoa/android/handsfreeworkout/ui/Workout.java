@@ -45,6 +45,7 @@ public class Workout extends Activity implements OnClickListener{
 	protected Intent mHandsFreeIntent;
 	protected Intent mCurrentStateIntent;
 	protected Intent mUpdateIntent;
+	protected Intent mSleepingIntent;
 
 	protected long mTimeWhenStopped;
 	protected String mTimerText;
@@ -54,6 +55,7 @@ public class Workout extends Activity implements OnClickListener{
 	protected boolean mWorkoutPaused;
 	protected long mCurrentBase;
 	protected boolean mGetLagTime;
+	protected boolean isSleeping;
 	
 	/**Time to be sent for update/stop app*/
 	protected String mUpdateTime;
@@ -95,6 +97,7 @@ public class Workout extends Activity implements OnClickListener{
 	/**Extra for update */
 	public static final String UPDATE_TIME_STRING = "update value string";
 	public static final String UPDATE_ACTION = "update action";
+	public static final String APP_SLEEPING = "app sleeping";
 	
 	/**Booleans to show which part of the app is doing the updating*/
 	protected static final boolean UI = true;
@@ -261,7 +264,7 @@ public class Workout extends Activity implements OnClickListener{
 			mCommandText.setTextColor(Color.RED);
 		}
 	}
-	/**sets the text for the display clock.  it is called at every tick of the clock */
+	/**Sets the text for the display clock.  This is called at every tick of the clock */
 	public void setDisplayClock(int mode) {
 		if(mTimer == null) {
 			Log.w("Workout", "(set display clock) timer is null");
@@ -349,6 +352,8 @@ public class Workout extends Activity implements OnClickListener{
 		Log.w("Workout", "activity interrupted");
 		if (mTimer != null) {
 			mCurrentBase = mTimer.getBase();
+			isSleeping = true;
+			announceSleeping();
 			mTimerText = (String) mTimer.getText();
 			Log.w("Workout", "(on pause) timer Text:  " + mTimerText);
 			//for persistence
@@ -367,7 +372,8 @@ public class Workout extends Activity implements OnClickListener{
 		Log.w("Workout", "on resume");
 		//so that can resume, but also considering first run of app
 		Log.w("Workout","initial create:  "+ mInitialCreate);
-
+		isSleeping = false;
+		announceSleeping();
 		if (!mInitialCreate) {
 				//persist the time 
 			if (mWorkoutRunning) {
@@ -474,7 +480,6 @@ public class Workout extends Activity implements OnClickListener{
 		Log.w("Workout", "announcing update");
 		if (mUpdateIntent == null) {
 			mUpdateIntent = new Intent(HandsFreeService.UpdateReceiver.GET_UPDATE);
-			//broadcast with default category
 			mUpdateIntent.addCategory(Intent.CATEGORY_DEFAULT);
 		}
 		mUpdateIntent.putExtra(UPDATE_ACTION, action);
@@ -483,7 +488,20 @@ public class Workout extends Activity implements OnClickListener{
 		}
 		this.sendBroadcast(mUpdateIntent);
 	}
-
+	
+	protected void announceSleeping() {
+		Log.w("Workout", "announce sleeping");
+		if (mSleepingIntent == null) {
+			mSleepingIntent = new Intent(HandsFreeService.UpdateReceiver.SLEEPING);
+		}
+		//if sleeping, send the current state, base time
+		mSleepingIntent.putExtra(APP_SLEEPING, isSleeping);
+		mSleepingIntent.putExtra(HandsFreeService.UpdateReceiver.WORKOUT_RUNNING, mWorkoutRunning);
+		mSleepingIntent.putExtra(HandsFreeService.UpdateReceiver.WORKOUT_PAUSED, mWorkoutPaused);
+		mSleepingIntent.putExtra(HandsFreeService.UpdateReceiver.WORKOUT_STOPPED, mWorkoutStopped);
+		mSleepingIntent.putExtra(HandsFreeService.UpdateReceiver.CURRENT_BASE_TIME, mCurrentBase);
+		this.sendBroadcast(mSleepingIntent);
+	}
 	public class ServiceReceiver extends BroadcastReceiver {
 
 		public static final String UPDATE = "update";
