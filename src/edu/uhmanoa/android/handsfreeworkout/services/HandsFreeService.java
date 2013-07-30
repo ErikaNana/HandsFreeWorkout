@@ -51,6 +51,7 @@ public class HandsFreeService extends Service implements TextToSpeech.OnInitList
 	protected String mUpdateTime;
 	protected boolean mSleeping;
 	protected long mBaseTime;
+	protected ArrayList<Long> mTotalTime;
 	
 	/* So can differentiate between what needs to be said in TTS */
 	protected HashMap <String, String> mReplies = new HashMap<String, String>();
@@ -134,6 +135,7 @@ public class HandsFreeService extends Service implements TextToSpeech.OnInitList
 		if(mRecorder == null) {
 			startListening();
 		}
+		mTotalTime = new ArrayList<Long>();
 	}
 	/** Want service to continue running until it is explicitly stopped*/
 	@Override
@@ -244,43 +246,52 @@ public class HandsFreeService extends Service implements TextToSpeech.OnInitList
 	}
 	/**Simulates accessing the UI.  Responds and updates state variables and time accordingly*/
 	private void updateBasedOnUI() {
-		/*Do stuff according to the current state of the app*/
 		switch (command) {
 		//app is not listening if stop button is pressed
 			case START:{
 				if (mWorkoutRunning) {
 					respond(START_BUTTON_CLICK);
 				}
-				if (mWorkoutPaused) {
-					respond(START_BUTTON_RESUME_CLICK);
-					/**	setStateVariables(true, false, false);
-						createTimer(0);*/
-				}
-				if (mWorkoutStopped) {
+				if (mWorkoutStopped) { //starting a new workout (can't happen if stopped since stopped listening)
 					setStateVariables(true, false, false);
-					//createTimer(0);
+					mBaseTime = SystemClock.elapsedRealtime();
+					//because when stopped, pause and stop states are true
+					break;
 				}
-/*				announceGetUpdate(HandsFreeService.START);*/
+				if (mWorkoutPaused) { //resume after pause
+					respond(START_BUTTON_RESUME_CLICK);
+					setStateVariables(true, false, false);
+					mBaseTime = SystemClock.elapsedRealtime();
+				}
 				break;
 			}
 			case STOP:{
-				if (!mWorkoutStopped) {
-/*					if (mTimer != null) {
-						mTimer.stop();
-						mTimer = null;
-					}*/
-					//mTimeWhenStopped = 0;	
+
+				if (mWorkoutRunning) { //stopping the workout
+					long timePassed = getTimePassed();
+					mTotalTime.add(timePassed);
+					//calculate how much total time has passed and respond
 				}
+				long totalTime = Utils.getTotalTime(mTotalTime);
+				mUpdateTime = Utils.getUpdateTimeFromRaw(totalTime);
+				respond(STOP_BUTTON_CLICK);
+				mTotalTime.clear();
+				setStateVariables(false, true, true);
+				//reset variables?  Are they needed here?
+/*				}
+				if (mWorkoutPaused) {
+					//just get the total time and respond
+				}*/
 				break;
 			}
 			case PAUSE:{
-				if (mWorkoutRunning) {
-					respond(PAUSE_BUTTON_CLICK);
-/*					announceGetUpdate(HandsFreeService.PAUSE);*/
+				if (mWorkoutRunning) { //pausing the workout
 					setStateVariables(false, true, false);
-					//pauseTimer();
-					/**	mTimeWhenStopped = mTimer.getBase() - SystemClock.elapsedRealtime();
-						mTimer.stop(); */
+					respond(PAUSE_BUTTON_CLICK);
+					
+					long timePassed = getTimePassed();
+					mTotalTime.add(timePassed);
+					break;
 				}
 				if (mWorkoutPaused) {
 					respond(ALREADY_PAUSED);
@@ -293,7 +304,18 @@ public class HandsFreeService extends Service implements TextToSpeech.OnInitList
 			}
 			case UPDATE:{
 				//get time from UI
-/*				announceGetUpdate(HandsFreeService.UPDATE);*/
+				//get the total time passed and respond
+				if (mWorkoutRunning) {
+					long timePassedRecent = getTimePassed();
+					long totalTimeSoFar = Utils.getTotalTime(mTotalTime);
+					long totalTime = totalTimeSoFar + timePassedRecent;
+					mUpdateTime = Utils.getUpdateTimeFromRaw(totalTime);
+				}
+				else {
+					mUpdateTime = Utils.getUpdateTimeFromRaw(Utils.getTotalTime(mTotalTime));
+				}
+
+				respond(UPDATE_TIME);
 				break;
 			}
 			default:{
@@ -681,5 +703,15 @@ public class HandsFreeService extends Service implements TextToSpeech.OnInitList
 		if (!stop) {
 			mWorkoutStopped = false;
 		}
+	}
+	
+	/**Gets how much time has passed between the base and the current time, parses it 
+	 * and adds it to the mTotalTime ArrayList*/
+	public long getTimePassed() {
+		long timePassed = Utils.getParsedTime((SystemClock.elapsedRealtime() - mBaseTime));
+		for (Long thing: mTotalTime) {
+			Log.w("HFS", "timePassed:  " + thing);
+		}
+		return timePassed;
 	}
 }

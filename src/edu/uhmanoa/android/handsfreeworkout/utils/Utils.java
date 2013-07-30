@@ -64,7 +64,7 @@ public class Utils {
 		
 		String timeString = "";
 		//make sure it is a valid time
-		if (inputTime.matches("([0-9][0-9]:[0-9][0-9])|([0-9]:[0-9][0-9]:[0-9][0-9])")){	
+		if (inputTime.matches("([0-9][0-9]:[0-9][0-9])|([0-9][0-9]*:[0-9][0-9]:[0-9][0-9])")){	
 			//MM:SS or H:MM:SS form
 			String[] time = inputTime.split(":");
 			//there are hours
@@ -131,7 +131,7 @@ public class Utils {
 		String timeString = "";
 		//make sure it's a valid time
 		
-		if (time.matches("([0-9][0-9]:[0-9][0-9])|([0-9]:[0-9][0-9]:[0-9][0-9])")){
+		if (time.matches("([0-9][0-9]:[0-9][0-9])|([0-9][0-9]*:[0-9][0-9]:[0-9][0-9])")){
 			//MM:SS or H:MM:SS form
 			String[] timeArray = time.split(":");
 			//there are hours
@@ -181,4 +181,51 @@ public class Utils {
 		}
 		return timeString;
 	}
+	
+	/**returns a parsed time*/
+	public static long getParsedTime(long time) {
+		return time/1000;
+	}
+	
+	/**Gets the total time from adding up the times in the ArrayList*/
+	public static long getTotalTime (ArrayList<Long> times) {
+		long totalTime = 0;
+		for (long time: times) {
+			totalTime += time;
+		}
+		return totalTime;
+	}
+	/**Gets the formatted time based on the raw time*/
+	public static String getUpdateTimeFromRaw(long rawTime){
+		//get time in hours minutes seconds
+		int hours = (int) ((rawTime/(60 * 60)) % 24);
+		int minutes = (int) ((rawTime / 60) % 60);
+		int seconds = (int) rawTime % 60;
+		
+		String time = "";
+		
+		String correctHours = String.valueOf(hours);
+		String correctMinutes = String.valueOf(minutes);
+		String correctSeconds = String.valueOf(seconds);
+		
+		if (hours < 10) {
+			correctHours = "0" + correctHours;
+		}
+		if (minutes < 10) {
+			correctMinutes = "0" + correctMinutes;
+		}
+		
+		if (seconds <10) {
+			correctSeconds = "0" + correctSeconds;
+		}
+		if (hours == 0) {
+			//just minutes
+			time = correctMinutes + ":" + correctSeconds;
+		}
+		if (hours > 0) {
+			time = correctHours + ":" + correctMinutes + ":" + correctSeconds;
+		}
+		Log.w("UTILS", "(getUpdateFromRaw) TIME:  " + time);
+		return getUpdate(time, false);
+	} 
 }
