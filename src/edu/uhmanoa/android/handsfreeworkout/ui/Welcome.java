@@ -7,18 +7,21 @@ import android.graphics.Typeface;
 import android.os.Bundle;
 import android.speech.tts.TextToSpeech;
 import android.speech.tts.TextToSpeech.OnInitListener;
+import android.util.Log;
 import android.view.View;
 import android.view.Window;
 import android.widget.Button;
 import android.widget.RelativeLayout;
 import android.widget.TextView;
 import edu.uhmanoa.android.handsfreeworkout.R;
+import edu.uhmanoa.android.handsfreeworkout.services.HandsFreeService;
 
 
 public class Welcome extends Activity implements View.OnClickListener, OnInitListener {
 
 	protected Button startButton;
 	protected TextToSpeech mTTS;
+	protected Intent mHandsFreeIntent;
 	
 	protected void onCreate(Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
@@ -29,6 +32,7 @@ public class Welcome extends Activity implements View.OnClickListener, OnInitLis
 		startButton = (Button) findViewById(R.id.speakButton);
 		//since Activity implements it
 		startButton.setOnClickListener(this);
+		startHandsFreeService();
 	}
 	
 	/**Set the layout font */
@@ -86,5 +90,13 @@ public class Welcome extends Activity implements View.OnClickListener, OnInitLis
 			mTTS.shutdown();
 			mTTS = null;
 		}
+	}
+	
+	public void startHandsFreeService() {
+		Log.w("Workout", "starting hands free service");
+		if (mHandsFreeIntent == null) {
+			mHandsFreeIntent = new Intent(this, HandsFreeService.class);
+		}
+		startService(mHandsFreeIntent);
 	}
 }

@@ -3,8 +3,6 @@ package edu.uhmanoa.android.handsfreeworkout.services;
 import java.io.IOException;
 import java.util.ArrayList;
 
-import android.app.AlarmManager;
-import android.app.PendingIntent;
 import android.app.Service;
 import android.content.BroadcastReceiver;
 import android.content.Context;
@@ -30,8 +28,6 @@ public class HandsFreeService extends Service{
 	protected UpdateReceiver mReceiver;
 	protected MediaRecorder mRecorder; //recorder that listens for a command
 	protected Handler mHandler;
-	protected AlarmManager am;
-	protected PendingIntent pi;
 	
 	/**Intents*/
 	protected Intent mRecognizerIntent;
@@ -47,8 +43,7 @@ public class HandsFreeService extends Service{
 	protected int mCounter;
 	protected String mUpdateTime;
 	protected boolean mSleeping;
-/*	protected long mBaseTime;
-	protected ArrayList<Long> mTotalTime;*/
+
 	protected ServiceTimeManager mTimeManager;
 	
 	/* Value to determine what needs to be said */
@@ -110,18 +105,18 @@ public class HandsFreeService extends Service{
 		iSleeping.addCategory(Intent.CATEGORY_DEFAULT);
 		IntentFilter iDoneSpeaking = new IntentFilter(UpdateReceiver.DONE_SPEAKING);
 		iDoneSpeaking.addCategory(Intent.CATEGORY_DEFAULT);
+		IntentFilter iStartListening = new IntentFilter(UpdateReceiver.START_LISTENING);
+		iDoneSpeaking.addCategory(Intent.CATEGORY_DEFAULT);
 	
 		mReceiver = new UpdateReceiver();
 		this.registerReceiver(mReceiver, iFilter);
 		this.registerReceiver(mReceiver, updateFilter);
 		this.registerReceiver(mReceiver, iSleeping);
 		this.registerReceiver(mReceiver, iDoneSpeaking);
+		this.registerReceiver(mReceiver, iStartListening);
 		
 		mHandler = new Handler();
-		//for persistence
-		if(mRecorder == null) {
-			startListening();
-		}
+
 	}
 	/** Want service to continue running until it is explicitly stopped*/
 	@Override
@@ -204,7 +199,7 @@ public class HandsFreeService extends Service{
 					}
 				}
 				else {	
-					callAndExecuteFeedback(COMMAND_NOT_RECOGNIZED_RESULT, null);
+					getFeedback(COMMAND_NOT_RECOGNIZED_RESULT, null);
 				}
 			}
 
@@ -229,10 +224,10 @@ public class HandsFreeService extends Service{
 		//app is not listening if in mWorkoutStopped state
 			case START:{
 				if (mWorkoutRunning) {
-					callAndExecuteFeedback(START_BUTTON_CLICK, null);
+					getFeedback(START_BUTTON_CLICK, null);
 				}
 				if (mWorkoutPaused) { //resume after pause
-					callAndExecuteFeedback(START_BUTTON_RESUME_CLICK, null);
+					getFeedback(START_BUTTON_RESUME_CLICK, null);
 					setStateVariables(true, false, false);
 					mTimeManager.setBaseTime(SystemClock.elapsedRealtime());
 				}
@@ -245,7 +240,7 @@ public class HandsFreeService extends Service{
 				//calculate how much total time has passed and respond
 				mUpdateTime = mTimeManager.getTotalTimeAndFormat();
 	
-				callAndExecuteFeedback(STOP_BUTTON_CLICK, mUpdateTime);
+				getFeedback(STOP_BUTTON_CLICK, mUpdateTime);
 				mTimeManager.resetTotalTime();
 				setStateVariables(false, true, true);
 				break;
@@ -253,12 +248,12 @@ public class HandsFreeService extends Service{
 			case PAUSE:{
 				if (mWorkoutRunning) { //pausing the workout
 					setStateVariables(false, true, false);
-					callAndExecuteFeedback(PAUSE_BUTTON_CLICK, null);
+					getFeedback(PAUSE_BUTTON_CLICK, null);
 					mTimeManager.addSectionOfTime();
 					break;
 				}
 				if (mWorkoutPaused) {
-					callAndExecuteFeedback(ALREADY_PAUSED, null);
+					getFeedback(ALREADY_PAUSED, null);
 				}				
 				break;
 			}
@@ -270,11 +265,11 @@ public class HandsFreeService extends Service{
 				else {
 					mUpdateTime = mTimeManager.getTotalTimeAndFormat();
 				}
-				callAndExecuteFeedback(UPDATE_TIME, mUpdateTime);
+				getFeedback(UPDATE_TIME, mUpdateTime);
 				break;
 			}
 			default:{
-				callAndExecuteFeedback(COMMAND_NOT_RECOGNIZED_RESULT, null);
+				getFeedback(COMMAND_NOT_RECOGNIZED_RESULT, null);
 			}
 		}
 	}
@@ -308,16 +303,16 @@ public class HandsFreeService extends Service{
 				}
 				startVoiceRec();
 			}
-			if (mCounter < 3) {
-				mHandler.postDelayed(checkSpeechRec, UPDATE_FREQUENCY);			
-			}
+			
 			if (mCounter >= 3) {
 				stopAndDestroyVoiceRec();
 				Log.w("HFS", "SILENCE");
-				callAndExecuteFeedback(NOTHING_SAID, null);
+				getFeedback(NOTHING_SAID, null);
 				mCounter = 0;
 			}
-
+			if (mCounter < 3) {
+				mHandler.postDelayed(checkSpeechRec, UPDATE_FREQUENCY);			
+			}
 		}
 	};
 
@@ -436,6 +431,7 @@ public class HandsFreeService extends Service{
 	/**Sends a broadcast to get the current state from Workout.  Only called if command is
 	 * recognized in VoiceRec */
 	protected void announceGetCurrentState() {
+		Log.w("HFS", "sleeping:  " + mSleeping);
 		if (mGetCurrentStateIntent == null) {
 			mGetCurrentStateIntent = new Intent(Workout.ServiceReceiver.GET_CURRENT_STATE);			
 		}
@@ -444,18 +440,13 @@ public class HandsFreeService extends Service{
 		Log.w("HFS", "announcing get current state");
 	}
 	
-	public void setServiceState(boolean start) {
-		Log.e("HFS", "BACK IN THE SERVICE BITCH");
-		if (start) {
-			startListening();
-		}
-	}
 	public class UpdateReceiver extends BroadcastReceiver {
 		
 		public static final String GET_UPDATE = "get update";
 		public static final String RECEIVE_CURRENT_STATE = "receive current state";
 		public static final String SLEEPING = "sleeping";
 		public static final String DONE_SPEAKING = "done speaking";
+		public static final String START_LISTENING = "start listening";
 		
 		/**Names of the current states and base time*/
 		public static final String WORKOUT_RUNNING = "workout running";
@@ -470,15 +461,20 @@ public class HandsFreeService extends Service{
 		@Override
 		public void onReceive(Context context, Intent intent) {
 			String type = intent.getAction();
-			/**This is sent in onPause of Workout*/
+			/**Sent by Welcome after button click*/
+			if (type.equals(START_LISTENING)) {
+				startListening();
+			}
+			/**Sent by AsyncVoiceFeedback*/
 			if (type.equals(DONE_SPEAKING)) {
 				boolean start = intent.getBooleanExtra(START_OR_NOT, false);
-				if (start) {
+				if (start){
 					startListening();
 				}
 				Log.e("HFS", "DONE SPEAKING IS RECEIVED!");
 				
 			}
+			/**Sent in onPause of Workout*/
 			if (type.equals(SLEEPING)) {
 				mSleeping = intent.getBooleanExtra(Workout.APP_SLEEPING, false);
 				
@@ -505,7 +501,7 @@ public class HandsFreeService extends Service{
 					//set this as updateText
 					mUpdateTime = updateTime;
 				}
-				callAndExecuteFeedback(action, mUpdateTime);
+				getFeedback(action, mUpdateTime);
 
 			}
 			/**This only happens when a command is recognized in VoiceRec*/
@@ -523,10 +519,10 @@ public class HandsFreeService extends Service{
 				//app is not listening if stop button is pressed
 					case START:{
 						if (mWorkoutRunning) {
-							callAndExecuteFeedback(START_BUTTON_CLICK, null);
+							getFeedback(START_BUTTON_CLICK, null);
 						}
 						if (mWorkoutPaused) {
-							callAndExecuteFeedback(START_BUTTON_RESUME_CLICK, null);
+							getFeedback(START_BUTTON_RESUME_CLICK, null);
 						}
 						announceGetUpdate(HandsFreeService.START);
 						break;
@@ -537,11 +533,11 @@ public class HandsFreeService extends Service{
 					}
 					case PAUSE:{
 						if (mWorkoutRunning) {
-							callAndExecuteFeedback(PAUSE_BUTTON_CLICK, null);
+							getFeedback(PAUSE_BUTTON_CLICK, null);
 							announceGetUpdate(HandsFreeService.PAUSE);
 						}
 						if (mWorkoutPaused) {
-							callAndExecuteFeedback(ALREADY_PAUSED, null);
+							getFeedback(ALREADY_PAUSED, null);
 						}
 						break;
 					}
@@ -551,14 +547,14 @@ public class HandsFreeService extends Service{
 						break;
 					}
 					default:{
-						callAndExecuteFeedback(COMMAND_NOT_RECOGNIZED_RESULT, null);
+						getFeedback(COMMAND_NOT_RECOGNIZED_RESULT, null);
 					}
 				}
 			}
 		}
 	}
 	
-	public void callAndExecuteFeedback(int action, String time) {
+	public void getFeedback(int action, String time) {
 		stopListening();
 		AsyncVoiceFeedback mVoiceFeedback = new AsyncVoiceFeedback(getApplicationContext(), HandsFreeService.this);
 		params = new Integer[1];
@@ -567,7 +563,6 @@ public class HandsFreeService extends Service{
 		if (time != null) {
 			mVoiceFeedback.setUpdateTime(time);
 		}
-		mVoiceFeedback = null;
 	}
 	public void setStateVariables (boolean running, boolean pause, boolean stop) {
 		if (running) {

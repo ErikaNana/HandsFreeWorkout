@@ -76,19 +76,6 @@ public class Workout extends Activity implements OnClickListener{
 	/** Name of the string that identifies what the response should be */
 	public static final String RESPONSE_STRING = "response string";
 
-	/** Codes for the response that feedback should say */
-	public static final int WORKOUT_ALREADY_STARTED = 1;
-	public static final int STOP_WORKOUT = 2;
-	public static final int WORKOUT_ALREADY_FINISHED = 3;
-	public static final int UPDATE_WORKOUT = 4;
-	public static final int CREATING_BASELINE = 5;
-	public static final int FINISHED_BASELINE = 6;
-	public static final int RESUME_WORKOUT = 7;
-	public static final int SILENCE = 8;
-	public static final int PAUSE_WORKOUT = 9;
-	public static final int COMMAND_NOT_RECOGNIZED = 10;
-	public static final int START_WORKOUT = 11;
-
 	/**Modes for display clock*/
 	protected static final int CLASSIC = 1;
 	protected static final int HIPSTER = 2;
@@ -160,18 +147,6 @@ public class Workout extends Activity implements OnClickListener{
 		/* tell OS that volume buttons should affect "media" volume, since that's the volume
 		used for application */
 		setVolumeControlStream(AudioManager.STREAM_MUSIC);
-
-		//So that app doesn't pick up feedback from Welcome
-		Handler handler = new Handler();
-		handler.postDelayed(new Runnable() {
-
-			@Override
-			public void run() {
-				startHandsFreeService();	
-			}
-		}, 1000L);
-
-
 	}
 
 	/**Handle button clicks */
@@ -383,10 +358,19 @@ public class Workout extends Activity implements OnClickListener{
 		}
 		else {
 			//initial create
+			//So that app doesn't pick up feedback from Welcome
+			Handler handler = new Handler();
+			handler.postDelayed(new Runnable() {
+
+				@Override
+				public void run() {
+					/*startHandsFreeService();	*/
+					announceStartListening();
+				}
+			}, 1000L);
 			createTimer(0);
 			Log.w("Workout", "initial create");
 			mInitialCreate = false;
-
 		}
 
 		setButtons();
@@ -489,6 +473,11 @@ public class Workout extends Activity implements OnClickListener{
 		this.sendBroadcast(mUpdateIntent);
 	}
 	
+	protected void announceStartListening() {
+		Log.w("Workout", "start listening");
+		Intent listen = new Intent(HandsFreeService.UpdateReceiver.START_LISTENING);
+		this.sendBroadcast(listen);
+	}
 	protected void announceSleeping() {
 		Log.w("Workout", "announce sleeping");
 		if (mSleepingIntent == null) {
@@ -565,6 +554,10 @@ public class Workout extends Activity implements OnClickListener{
 		Log.w("Workout", "is finishing?  " + this.isFinishing());
 		//if user is absolutely done with the activity
 		if (isFinishing()) {
+			if (mHandsFreeIntent == null) {
+				mHandsFreeIntent = new Intent(this, HandsFreeService.class);
+			}
+			Log.w("Workout", "intent:  " + mHandsFreeIntent);
 			this.stopService(mHandsFreeIntent);
 		}
 		Log.e("Workout", "Workout onDestroy");

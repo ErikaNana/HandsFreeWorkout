@@ -16,27 +16,12 @@ public class AsyncVoiceFeedback extends AsyncTask<Integer, Void, Void> implement
 	protected HashMap <String, String> mReplies = new HashMap<String, String>();
 	protected String mUpdateTime;
 	protected Intent mDoneSpeakingIntent;
-	protected boolean mStart;
+	protected boolean mStart= true;
 	
-	/** Keys for hash table of replies */
-	protected static final String WORKOUT_ALREADY_STARTED = "workout already started";
-	protected static final String RESUME_WORKOUT = "resume workout";
-	protected static final String STOP_WORKOUT = "workout finished";
-	protected static final String WORKOUT_ALREADY_FINISHED = "workout already finished";
-	protected static final String UPDATE_WORKOUT = "update";
-	protected static final String CREATING_BASELINE = "creating baseline";
-	protected static final String FINISHED_BASELINE = "finished baseline";
-	protected static final String SILENCE = "silence";
-	protected static final String PAUSE_WORKOUT = "pause workout";
-	protected static final String COMMAND_NOT_RECOGNIZED = "command not recognized";
-	protected static final String START_WORKOUT = "start workout";
-	protected static final String ALREADY_PAUSED_WORKOUT = "already paused";
-		
-	/** Name of action to be done in HandsFreeService*/
-	public static final String START_STOP_ACTION = "start stop action";
-	protected HandsFreeService mService;
+	/**Just need this for the listener*/
+	protected static final String STRING = "string";
 	
-	protected boolean mInitialized;
+/*	protected boolean mInitialized;*/
 	
 	/**Context needs to be getApplicationContext()*/
 	public AsyncVoiceFeedback(Context context, HandsFreeService service) {
@@ -45,58 +30,56 @@ public class AsyncVoiceFeedback extends AsyncTask<Integer, Void, Void> implement
 	
 	@Override
 	protected Void doInBackground(Integer... params) {
+		mReplies.put(TextToSpeech.Engine.KEY_PARAM_UTTERANCE_ID, STRING);
 		createTTS();
 		
-		while (!mInitialized) {
+/*		while (!mInitialized) {
+			try { //so thread doesn't think it's in an infinite while loop
+				Thread.sleep(100);
+			} catch (InterruptedException e) {
+				e.printStackTrace();
+			}
 			continue;
-		}
+		}*/
 		
 		int action;
 		action = params[0];
 		switch(action) {
 		case HandsFreeService.START_BUTTON_CLICK:{
-			mReplies.put(TextToSpeech.Engine.KEY_PARAM_UTTERANCE_ID, WORKOUT_ALREADY_STARTED);
 			mTTS.speak("workout is in progress", TextToSpeech.QUEUE_FLUSH, mReplies);
 			break;
 		}
 		case HandsFreeService.STOP_BUTTON_CLICK:{
 			//get update time
-			mReplies.put(TextToSpeech.Engine.KEY_PARAM_UTTERANCE_ID, STOP_WORKOUT);
+			mStart = false;
 			mTTS.speak("stopping workout.  Workout duration:  "+ mUpdateTime, TextToSpeech.QUEUE_FLUSH, mReplies);
 			break;
 		}
 		case HandsFreeService.PAUSE_BUTTON_CLICK:{
-			mReplies.put(TextToSpeech.Engine.KEY_PARAM_UTTERANCE_ID, PAUSE_WORKOUT);
 			mTTS.speak("pausing workout", TextToSpeech.QUEUE_FLUSH, mReplies);
 			break;
 		}
-		case HandsFreeService.UPDATE_TIME:{
-			mReplies.put(TextToSpeech.Engine.KEY_PARAM_UTTERANCE_ID, UPDATE_WORKOUT);
+		case HandsFreeService.UPDATE_TIME:{	
 			mTTS.speak(mUpdateTime + "have elapsed", TextToSpeech.QUEUE_FLUSH, mReplies);
 			break;
 		}
 		case HandsFreeService.INITIAL_CREATE:{
-			mReplies.put(TextToSpeech.Engine.KEY_PARAM_UTTERANCE_ID, START_WORKOUT);
 			mTTS.speak("begin workout", TextToSpeech.QUEUE_FLUSH, mReplies);
 			break;	
 		}
 		case HandsFreeService.START_BUTTON_RESUME_CLICK:{
-			mReplies.put(TextToSpeech.Engine.KEY_PARAM_UTTERANCE_ID, RESUME_WORKOUT);
 			mTTS.speak("continuing workout", TextToSpeech.QUEUE_FLUSH, mReplies);
 			break;	
 		}
 		case HandsFreeService.COMMAND_NOT_RECOGNIZED_RESULT:{
-			mReplies.put(TextToSpeech.Engine.KEY_PARAM_UTTERANCE_ID, COMMAND_NOT_RECOGNIZED);
 			mTTS.speak("command not recognized", TextToSpeech.QUEUE_FLUSH, mReplies);
 			break;	
 		}
 		case HandsFreeService.ALREADY_PAUSED:{
-			mReplies.put(TextToSpeech.Engine.KEY_PARAM_UTTERANCE_ID, ALREADY_PAUSED_WORKOUT);
 			mTTS.speak("workout is already paused", TextToSpeech.QUEUE_FLUSH, mReplies);
 			break;	
 		}
 		case HandsFreeService.NOTHING_SAID:{
-			mReplies.put(TextToSpeech.Engine.KEY_PARAM_UTTERANCE_ID, SILENCE);
 			mTTS.speak("silence", TextToSpeech.QUEUE_FLUSH, mReplies);
 			break;	
 		}
@@ -128,15 +111,6 @@ public class AsyncVoiceFeedback extends AsyncTask<Integer, Void, Void> implement
 			/**need this so speech recognition doesn't pick up on the feedback */
 			@Override
 			public void onDone(String utteranceID) {
-				Log.e("AVFB", "utterance:  " + utteranceID);
-				if (!utteranceID.equals(STOP_WORKOUT)) {
-				//broadcast done talking and should start listening again
-					mStart = true;
-				}
-				if (utteranceID.equals(STOP_WORKOUT)) {
-					//already stopped listening in respond()
-					mStart = false;
-				}
 				Log.w("AVFB", "Stop is:  " + mStart);
 				Log.e("AVFB", "YES!!!!");
 				announceDoneSpeaking();
@@ -149,6 +123,7 @@ public class AsyncVoiceFeedback extends AsyncTask<Integer, Void, Void> implement
 		mDoneSpeakingIntent.putExtra(HandsFreeService.UpdateReceiver.START_OR_NOT, mStart);
 		mContext.sendBroadcast(mDoneSpeakingIntent);			
 		Log.w("HFS", "announcing get current state");
+		destroyTTS();
 	}
 	@Override
 	public void onInit(int status) {
@@ -159,7 +134,7 @@ public class AsyncVoiceFeedback extends AsyncTask<Integer, Void, Void> implement
 		if (status == TextToSpeech.SUCCESS) {
 			mTTS.setLanguage(Locale.US);
 		}
-		mInitialized = true;
+/*		mInitialized = true;*/
 	}
 	
 	/** Turn off and destroy TTS */
@@ -172,4 +147,5 @@ public class AsyncVoiceFeedback extends AsyncTask<Integer, Void, Void> implement
 	protected void setUpdateTime(String updateTime) {
 		mUpdateTime = updateTime;
 	}
+	
 }
