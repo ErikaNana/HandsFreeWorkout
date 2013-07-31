@@ -226,6 +226,6 @@ public class Utils {
 			time = correctHours + ":" + correctMinutes + ":" + correctSeconds;
 		}
 		Log.w("UTILS", "(getUpdateFromRaw) TIME:  " + time);
-		return getUpdate(time, false);
+		return getUpdate(time, true);
 	} 
 }

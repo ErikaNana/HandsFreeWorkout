@@ -24,6 +24,7 @@ import android.speech.tts.TextToSpeech;
 import android.speech.tts.UtteranceProgressListener;
 import android.util.Log;
 import edu.uhmanoa.android.handsfreeworkout.ui.Workout;
+import edu.uhmanoa.android.handsfreeworkout.utils.ServiceTimeManager;
 import edu.uhmanoa.android.handsfreeworkout.utils.Utils;
 
 public class HandsFreeService extends Service implements TextToSpeech.OnInitListener{
@@ -50,8 +51,9 @@ public class HandsFreeService extends Service implements TextToSpeech.OnInitList
 	protected int mCounter;
 	protected String mUpdateTime;
 	protected boolean mSleeping;
-	protected long mBaseTime;
-	protected ArrayList<Long> mTotalTime;
+/*	protected long mBaseTime;
+	protected ArrayList<Long> mTotalTime;*/
+	protected ServiceTimeManager mTimeManager;
 	
 	/* So can differentiate between what needs to be said in TTS */
 	protected HashMap <String, String> mReplies = new HashMap<String, String>();
@@ -135,7 +137,7 @@ public class HandsFreeService extends Service implements TextToSpeech.OnInitList
 		if(mRecorder == null) {
 			startListening();
 		}
-		mTotalTime = new ArrayList<Long>();
+/*		mTotalTime = new ArrayList<Long>();*/
 	}
 	/** Want service to continue running until it is explicitly stopped*/
 	@Override
@@ -245,76 +247,52 @@ public class HandsFreeService extends Service implements TextToSpeech.OnInitList
 		mSpeechRec.startListening(mRecognizerIntent);
 	}
 	/**Simulates accessing the UI.  Responds and updates state variables and time accordingly*/
-	private void updateBasedOnUI() {
+	private void updateBasedOnUI() {		
 		switch (command) {
-		//app is not listening if stop button is pressed
+		//app is not listening if in mWorkoutStopped state
 			case START:{
 				if (mWorkoutRunning) {
 					respond(START_BUTTON_CLICK);
 				}
-				if (mWorkoutStopped) { //starting a new workout (can't happen if stopped since stopped listening)
-					setStateVariables(true, false, false);
-					mBaseTime = SystemClock.elapsedRealtime();
-					//because when stopped, pause and stop states are true
-					break;
-				}
 				if (mWorkoutPaused) { //resume after pause
 					respond(START_BUTTON_RESUME_CLICK);
 					setStateVariables(true, false, false);
-					mBaseTime = SystemClock.elapsedRealtime();
+					mTimeManager.setBaseTime(SystemClock.elapsedRealtime());
 				}
 				break;
 			}
 			case STOP:{
-
 				if (mWorkoutRunning) { //stopping the workout
-					long timePassed = getTimePassed();
-					mTotalTime.add(timePassed);
-					//calculate how much total time has passed and respond
+					mTimeManager.addSectionOfTime();
 				}
-				long totalTime = Utils.getTotalTime(mTotalTime);
-				mUpdateTime = Utils.getUpdateTimeFromRaw(totalTime);
+				//calculate how much total time has passed and respond
+				mUpdateTime = mTimeManager.getTotalTimeAndFormat();
+				
 				respond(STOP_BUTTON_CLICK);
-				mTotalTime.clear();
+				mTimeManager.resetTotalTime();
 				setStateVariables(false, true, true);
-				//reset variables?  Are they needed here?
-/*				}
-				if (mWorkoutPaused) {
-					//just get the total time and respond
-				}*/
 				break;
 			}
 			case PAUSE:{
 				if (mWorkoutRunning) { //pausing the workout
 					setStateVariables(false, true, false);
 					respond(PAUSE_BUTTON_CLICK);
-					
-					long timePassed = getTimePassed();
-					mTotalTime.add(timePassed);
+					mTimeManager.addSectionOfTime();
 					break;
 				}
 				if (mWorkoutPaused) {
 					respond(ALREADY_PAUSED);
-				}
-				if (mWorkoutStopped) {
-					//not listening so no need worry?
-				}
-				
+				}				
 				break;
 			}
 			case UPDATE:{
-				//get time from UI
 				//get the total time passed and respond
 				if (mWorkoutRunning) {
-					long timePassedRecent = getTimePassed();
-					long totalTimeSoFar = Utils.getTotalTime(mTotalTime);
-					long totalTime = totalTimeSoFar + timePassedRecent;
-					mUpdateTime = Utils.getUpdateTimeFromRaw(totalTime);
+					mUpdateTime = mTimeManager.getUpdateTimeFromRaw(mTimeManager.getUpdateTime());
 				}
 				else {
-					mUpdateTime = Utils.getUpdateTimeFromRaw(Utils.getTotalTime(mTotalTime));
+					mUpdateTime = mTimeManager.getTotalTimeAndFormat();
 				}
-
 				respond(UPDATE_TIME);
 				break;
 			}
@@ -340,7 +318,6 @@ public class HandsFreeService extends Service implements TextToSpeech.OnInitList
 			Log.w("HFS", "checking if alive");
 			if (mSpeechRecAlive) {
 				if (mFinished) {
-/*					Log.w("HFS", "confirmed result");*/
 					mSpeechRecAlive = false;
 					//reset mFinished
 					mFinished = false;
@@ -353,10 +330,10 @@ public class HandsFreeService extends Service implements TextToSpeech.OnInitList
 				}
 				startVoiceRec();
 			}
-			if (mCounter < 4) {
+			if (mCounter < 3) {
 				mHandler.postDelayed(checkSpeechRec, UPDATE_FREQUENCY);			
 			}
-			if (mCounter >= 4) {
+			if (mCounter >= 3) {
 				stopAndDestroyVoiceRec();
 				Log.w("HFS", "SILENCE");
 				mReplies.put(TextToSpeech.Engine.KEY_PARAM_UTTERANCE_ID, SILENCE);
@@ -376,7 +353,6 @@ public class HandsFreeService extends Service implements TextToSpeech.OnInitList
 		 * 					   unnecessary talking*/
 		@Override
 		public void run() {
-/*			mInitialCreate = false;*/
 			//if there is no recorder (like when launch speech recognizer) don't do anything
 			if (mRecorder == null) {
 				return;
@@ -441,6 +417,8 @@ public class HandsFreeService extends Service implements TextToSpeech.OnInitList
 		Log.w("HFS", "Stop listening");
 		mListeningForCommands = false;
 		mHandler.removeCallbacks(checkMaxAmp);
+		//just in case
+		mHandler.removeCallbacks(checkSpeechRec);
 		//just to be safe
 		stopAndDestroyRecorder();
 		//if doing voice rec, destroy it
@@ -482,7 +460,7 @@ public class HandsFreeService extends Service implements TextToSpeech.OnInitList
 						public void run() {
 							startListening();
 						}
-					}, 250L);
+					}, 100L);
 
 				}
 				if (utteranceID.equals(STOP_WORKOUT)) {
@@ -613,11 +591,13 @@ public class HandsFreeService extends Service implements TextToSpeech.OnInitList
 				
 				//update variables if sleeping
 				if (mSleeping) {
-					//states are now update
+					//states are now updated
 					mWorkoutRunning = intent.getBooleanExtra(WORKOUT_RUNNING, false);
 					mWorkoutPaused = intent.getBooleanExtra(WORKOUT_PAUSED, false);
 					mWorkoutStopped = intent.getBooleanExtra(WORKOUT_STOPPED, false);
-					mBaseTime = intent.getLongExtra(CURRENT_BASE_TIME, 0);
+
+					//manage the time
+					mTimeManager = new ServiceTimeManager(intent.getLongExtra(CURRENT_BASE_TIME, 0));
 				}
 				Log.e("HFS", "APP IS SLEEPING:  " + mSleeping);
 			}
@@ -707,11 +687,8 @@ public class HandsFreeService extends Service implements TextToSpeech.OnInitList
 	
 	/**Gets how much time has passed between the base and the current time, parses it 
 	 * and adds it to the mTotalTime ArrayList*/
-	public long getTimePassed() {
+/*	public long getTimePassed() {
 		long timePassed = Utils.getParsedTime((SystemClock.elapsedRealtime() - mBaseTime));
-		for (Long thing: mTotalTime) {
-			Log.w("HFS", "timePassed:  " + thing);
-		}
 		return timePassed;
-	}
+	}*/
 }
