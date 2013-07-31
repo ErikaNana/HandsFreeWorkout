@@ -2,6 +2,8 @@ package edu.uhmanoa.android.handsfreeworkout.services;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.Locale;
 
 import android.app.Service;
 import android.content.BroadcastReceiver;
@@ -16,12 +18,15 @@ import android.os.SystemClock;
 import android.speech.RecognitionListener;
 import android.speech.RecognizerIntent;
 import android.speech.SpeechRecognizer;
+import android.speech.tts.TextToSpeech;
+import android.speech.tts.TextToSpeech.OnInitListener;
+import android.speech.tts.UtteranceProgressListener;
 import android.util.Log;
 import edu.uhmanoa.android.handsfreeworkout.ui.Workout;
 import edu.uhmanoa.android.handsfreeworkout.utils.ServiceTimeManager;
 import edu.uhmanoa.android.handsfreeworkout.utils.Utils;
 
-public class HandsFreeService extends Service{
+public class HandsFreeService extends Service implements OnInitListener{
 	
 	protected SpeechRecognizer mSpeechRec; 
 	protected RecognitionListener mSpeechRecListen; 
@@ -50,7 +55,7 @@ public class HandsFreeService extends Service{
 	protected int mResponse;
 	
 	/** The time frequency at which check if speech recognizer is still alive */
-	protected static final long UPDATE_FREQUENCY =3500L;
+	protected static final long UPDATE_FREQUENCY =4000L;
 	
 	/** The time frequency at which check the max amplitude of the recording */
 	protected static final long CHECK_FREQUENCY = 350L; 
@@ -88,8 +93,13 @@ public class HandsFreeService extends Service{
 	
 	/**Command that was said*/
 	protected int command;
-	protected Integer[] params;
+/*	protected Integer[] params;*/
 	
+	protected TextToSpeech mTTS;
+	protected Context mContext;
+	protected HashMap <String, String> mReplies = new HashMap<String, String>();
+	protected static final String STRING = "just need one";
+	protected boolean stop;
 	@Override
 	public IBinder onBind(Intent arg0) {
 		return null;
@@ -103,20 +113,20 @@ public class HandsFreeService extends Service{
 		updateFilter.addCategory(Intent.CATEGORY_DEFAULT);
 		IntentFilter iSleeping = new IntentFilter(UpdateReceiver.SLEEPING);
 		iSleeping.addCategory(Intent.CATEGORY_DEFAULT);
-		IntentFilter iDoneSpeaking = new IntentFilter(UpdateReceiver.DONE_SPEAKING);
-		iDoneSpeaking.addCategory(Intent.CATEGORY_DEFAULT);
+/*		IntentFilter iDoneSpeaking = new IntentFilter(UpdateReceiver.DONE_SPEAKING);
+		iDoneSpeaking.addCategory(Intent.CATEGORY_DEFAULT);*/
 		IntentFilter iStartListening = new IntentFilter(UpdateReceiver.START_LISTENING);
-		iDoneSpeaking.addCategory(Intent.CATEGORY_DEFAULT);
+		iStartListening.addCategory(Intent.CATEGORY_DEFAULT);
 	
 		mReceiver = new UpdateReceiver();
 		this.registerReceiver(mReceiver, iFilter);
 		this.registerReceiver(mReceiver, updateFilter);
 		this.registerReceiver(mReceiver, iSleeping);
-		this.registerReceiver(mReceiver, iDoneSpeaking);
+/*		this.registerReceiver(mReceiver, iDoneSpeaking);*/
 		this.registerReceiver(mReceiver, iStartListening);
 		
 		mHandler = new Handler();
-
+		createTTS();
 	}
 	/** Want service to continue running until it is explicitly stopped*/
 	@Override
@@ -199,7 +209,7 @@ public class HandsFreeService extends Service{
 					}
 				}
 				else {	
-					getFeedback(COMMAND_NOT_RECOGNIZED_RESULT, null);
+					getFeedback(COMMAND_NOT_RECOGNIZED_RESULT);
 				}
 			}
 
@@ -224,10 +234,10 @@ public class HandsFreeService extends Service{
 		//app is not listening if in mWorkoutStopped state
 			case START:{
 				if (mWorkoutRunning) {
-					getFeedback(START_BUTTON_CLICK, null);
+					getFeedback(START_BUTTON_CLICK);
 				}
 				if (mWorkoutPaused) { //resume after pause
-					getFeedback(START_BUTTON_RESUME_CLICK, null);
+					getFeedback(START_BUTTON_RESUME_CLICK);
 					setStateVariables(true, false, false);
 					mTimeManager.setBaseTime(SystemClock.elapsedRealtime());
 				}
@@ -240,7 +250,7 @@ public class HandsFreeService extends Service{
 				//calculate how much total time has passed and respond
 				mUpdateTime = mTimeManager.getTotalTimeAndFormat();
 	
-				getFeedback(STOP_BUTTON_CLICK, mUpdateTime);
+				getFeedback(STOP_BUTTON_CLICK);
 				mTimeManager.resetTotalTime();
 				setStateVariables(false, true, true);
 				break;
@@ -248,12 +258,12 @@ public class HandsFreeService extends Service{
 			case PAUSE:{
 				if (mWorkoutRunning) { //pausing the workout
 					setStateVariables(false, true, false);
-					getFeedback(PAUSE_BUTTON_CLICK, null);
+					getFeedback(PAUSE_BUTTON_CLICK);
 					mTimeManager.addSectionOfTime();
 					break;
 				}
 				if (mWorkoutPaused) {
-					getFeedback(ALREADY_PAUSED, null);
+					getFeedback(ALREADY_PAUSED);
 				}				
 				break;
 			}
@@ -265,11 +275,11 @@ public class HandsFreeService extends Service{
 				else {
 					mUpdateTime = mTimeManager.getTotalTimeAndFormat();
 				}
-				getFeedback(UPDATE_TIME, mUpdateTime);
+				getFeedback(UPDATE_TIME);
 				break;
 			}
 			default:{
-				getFeedback(COMMAND_NOT_RECOGNIZED_RESULT, null);
+				getFeedback(COMMAND_NOT_RECOGNIZED_RESULT);
 			}
 		}
 	}
@@ -307,7 +317,7 @@ public class HandsFreeService extends Service{
 			if (mCounter >= 3) {
 				stopAndDestroyVoiceRec();
 				Log.w("HFS", "SILENCE");
-				getFeedback(NOTHING_SAID, null);
+				getFeedback(NOTHING_SAID);
 				mCounter = 0;
 			}
 			if (mCounter < 3) {
@@ -414,6 +424,7 @@ public class HandsFreeService extends Service{
 		Log.w("HFS", "on destroy of service");
 		destroySpeechRecognizer();
 		stopAndDestroyRecorder();
+		destroyTTS();
 		this.unregisterReceiver(mReceiver);
 	}
 	
@@ -445,7 +456,6 @@ public class HandsFreeService extends Service{
 		public static final String GET_UPDATE = "get update";
 		public static final String RECEIVE_CURRENT_STATE = "receive current state";
 		public static final String SLEEPING = "sleeping";
-		public static final String DONE_SPEAKING = "done speaking";
 		public static final String START_LISTENING = "start listening";
 		
 		/**Names of the current states and base time*/
@@ -464,15 +474,6 @@ public class HandsFreeService extends Service{
 			/**Sent by Welcome after button click*/
 			if (type.equals(START_LISTENING)) {
 				startListening();
-			}
-			/**Sent by AsyncVoiceFeedback*/
-			if (type.equals(DONE_SPEAKING)) {
-				boolean start = intent.getBooleanExtra(START_OR_NOT, false);
-				if (start){
-					startListening();
-				}
-				Log.e("HFS", "DONE SPEAKING IS RECEIVED!");
-				
 			}
 			/**Sent in onPause of Workout*/
 			if (type.equals(SLEEPING)) {
@@ -501,7 +502,7 @@ public class HandsFreeService extends Service{
 					//set this as updateText
 					mUpdateTime = updateTime;
 				}
-				getFeedback(action, mUpdateTime);
+				getFeedback(action);
 
 			}
 			/**This only happens when a command is recognized in VoiceRec*/
@@ -519,49 +520,84 @@ public class HandsFreeService extends Service{
 				//app is not listening if stop button is pressed
 					case START:{
 						if (mWorkoutRunning) {
-							getFeedback(START_BUTTON_CLICK, null);
+							getFeedback(START_BUTTON_CLICK);
 						}
 						if (mWorkoutPaused) {
-							getFeedback(START_BUTTON_RESUME_CLICK, null);
+							getFeedback(START_BUTTON_RESUME_CLICK);
 						}
-						announceGetUpdate(HandsFreeService.START);
+						announceGetUpdate(START);
 						break;
 					}
 					case STOP:{
-						announceGetUpdate(HandsFreeService.STOP);
+						announceGetUpdate(STOP);
 						break;
 					}
 					case PAUSE:{
 						if (mWorkoutRunning) {
-							getFeedback(PAUSE_BUTTON_CLICK, null);
-							announceGetUpdate(HandsFreeService.PAUSE);
+							getFeedback(PAUSE_BUTTON_CLICK);
+							announceGetUpdate(PAUSE);
 						}
 						if (mWorkoutPaused) {
-							getFeedback(ALREADY_PAUSED, null);
+							getFeedback(ALREADY_PAUSED);
 						}
 						break;
 					}
 					case UPDATE:{
 						//get time from UI
-						announceGetUpdate(HandsFreeService.UPDATE);
+						announceGetUpdate(UPDATE);
 						break;
 					}
 					default:{
-						getFeedback(COMMAND_NOT_RECOGNIZED_RESULT, null);
+						getFeedback(COMMAND_NOT_RECOGNIZED_RESULT);
 					}
 				}
 			}
 		}
 	}
 	
-	public void getFeedback(int action, String time) {
+	public void getFeedback(int action) {
 		stopListening();
-		AsyncVoiceFeedback mVoiceFeedback = new AsyncVoiceFeedback(getApplicationContext(), HandsFreeService.this);
-		params = new Integer[1];
-		params[0] = action;
-		mVoiceFeedback.execute(params);
-		if (time != null) {
-			mVoiceFeedback.setUpdateTime(time);
+		//only need one to use the listener
+		mReplies.put(TextToSpeech.Engine.KEY_PARAM_UTTERANCE_ID, STRING);
+		
+		switch(action) {
+			case START_BUTTON_CLICK:{
+				mTTS.speak("workout is in progress", TextToSpeech.QUEUE_FLUSH, mReplies);
+				break;
+			}
+			case STOP_BUTTON_CLICK:{
+				stop = true;
+				mTTS.speak("stopping workout.  Workout duration:  "+ mUpdateTime, TextToSpeech.QUEUE_FLUSH, mReplies);
+				break;
+			}
+			case PAUSE_BUTTON_CLICK:{
+				mTTS.speak("pausing workout", TextToSpeech.QUEUE_FLUSH, mReplies);
+				break;
+			}
+			case UPDATE_TIME:{	
+				mTTS.speak(mUpdateTime + "have elapsed", TextToSpeech.QUEUE_FLUSH, mReplies);
+				break;
+			}
+			case INITIAL_CREATE:{
+				mTTS.speak("begin workout", TextToSpeech.QUEUE_FLUSH, mReplies);
+				break;	
+			}
+			case START_BUTTON_RESUME_CLICK:{
+				mTTS.speak("continuing workout", TextToSpeech.QUEUE_FLUSH, mReplies);
+				break;	
+			}
+			case COMMAND_NOT_RECOGNIZED_RESULT:{
+				mTTS.speak("command not recognized", TextToSpeech.QUEUE_FLUSH, mReplies);
+				break;	
+			}
+			case ALREADY_PAUSED:{
+				mTTS.speak("workout is already paused", TextToSpeech.QUEUE_FLUSH, mReplies);
+				break;	
+			}
+			case NOTHING_SAID:{
+				mTTS.speak("silence", TextToSpeech.QUEUE_FLUSH, mReplies);
+				break;	
+			}
 		}
 	}
 	public void setStateVariables (boolean running, boolean pause, boolean stop) {
@@ -584,4 +620,52 @@ public class HandsFreeService extends Service{
 			mWorkoutStopped = false;
 		}
 	}
+	
+	protected void createTTS() {
+		Log.e("HFS", "create TTS");
+		/*initialize TTS (don't need to check if it is installed because for OS 4.1 and up
+		it is already included.  But maybe do checks here for older versions later */
+		if (mTTS!= null) {
+			return;
+		}
+
+		mTTS = new TextToSpeech(this,this);
+		mTTS.setOnUtteranceProgressListener(new UtteranceProgressListener() {
+
+			@Override
+			public void onStart(String arg0) {
+				//don't need
+			}
+
+			@Override
+			public void onError(String arg0) {
+			}
+			/**need this so speech recognition doesn't pick up on the feedback */
+			@Override
+			public void onDone(String utteranceID) {
+				Log.e("AVFB", "YES!!!!");
+				if (!stop) {
+					startListening();
+				}
+			}
+		});
+	}
+	
+	@Override
+	public void onInit(int status) {
+		while (mTTS == null) {
+			createTTS();
+		}
+		if (status == TextToSpeech.SUCCESS) {
+			mTTS.setLanguage(Locale.US);
+		}
+	}
+	
+	/** Turn off and destroy TTS */
+	protected void destroyTTS() {
+		mTTS.stop();
+		mTTS.shutdown();
+		mTTS = null;
+	}
+	
 }
