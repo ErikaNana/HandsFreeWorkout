@@ -2,8 +2,6 @@ package edu.uhmanoa.android.handsfreeworkout.services;
 
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.Locale;
 
 import android.app.AlarmManager;
 import android.app.PendingIntent;
@@ -20,14 +18,12 @@ import android.os.SystemClock;
 import android.speech.RecognitionListener;
 import android.speech.RecognizerIntent;
 import android.speech.SpeechRecognizer;
-import android.speech.tts.TextToSpeech;
-import android.speech.tts.UtteranceProgressListener;
 import android.util.Log;
 import edu.uhmanoa.android.handsfreeworkout.ui.Workout;
 import edu.uhmanoa.android.handsfreeworkout.utils.ServiceTimeManager;
 import edu.uhmanoa.android.handsfreeworkout.utils.Utils;
 
-public class HandsFreeService extends Service implements TextToSpeech.OnInitListener{
+public class HandsFreeService extends Service{
 	
 	protected SpeechRecognizer mSpeechRec; 
 	protected RecognitionListener mSpeechRecListen; 
@@ -55,15 +51,11 @@ public class HandsFreeService extends Service implements TextToSpeech.OnInitList
 	protected ArrayList<Long> mTotalTime;*/
 	protected ServiceTimeManager mTimeManager;
 	
-	/* So can differentiate between what needs to be said in TTS */
-	protected HashMap <String, String> mReplies = new HashMap<String, String>();
-	protected TextToSpeech mTTS;
-	
 	/* Value to determine what needs to be said */
 	protected int mResponse;
 	
 	/** The time frequency at which check if speech recognizer is still alive */
-	protected static final long UPDATE_FREQUENCY = 4000L;
+	protected static final long UPDATE_FREQUENCY =3500L;
 	
 	/** The time frequency at which check the max amplitude of the recording */
 	protected static final long CHECK_FREQUENCY = 350L; 
@@ -81,20 +73,6 @@ public class HandsFreeService extends Service implements TextToSpeech.OnInitList
 	public static final int UPDATE = 5;
 	public static final int COMMAND_NOT_RECOGNIZED_RESULT = 6;
 	
-	/** Keys for hash table of replies */
-	protected static final String WORKOUT_ALREADY_STARTED = "workout already started";
-	protected static final String RESUME_WORKOUT = "resume workout";
-	protected static final String STOP_WORKOUT = "workout finished";
-	protected static final String WORKOUT_ALREADY_FINISHED = "workout already finished";
-	protected static final String UPDATE_WORKOUT = "update";
-	protected static final String CREATING_BASELINE = "creating baseline";
-	protected static final String FINISHED_BASELINE = "finished baseline";
-	protected static final String SILENCE = "silence";
-	protected static final String PAUSE_WORKOUT = "pause workout";
-	protected static final String COMMAND_NOT_RECOGNIZED = "command not recognized";
-	protected static final String START_WORKOUT = "start workout";
-	protected static final String ALREADY_PAUSED_WORKOUT = "already paused";
-	
 	/**Possible action values from Workout*/
 	public static final int START_BUTTON_CLICK = 7;
 	public static final int STOP_BUTTON_CLICK = 8;
@@ -103,14 +81,19 @@ public class HandsFreeService extends Service implements TextToSpeech.OnInitList
 	public static final int INITIAL_CREATE = 11;
 	public static final int BEGIN_WORKOUT = 12;
 	public static final int START_BUTTON_RESUME_CLICK = 13;
-	
+	public static final int NOTHING_SAID = 14;
+
+		
 	/**Current state of the application*/
 	protected boolean mWorkoutRunning;
 	protected boolean mWorkoutPaused;
 	protected boolean mWorkoutStopped;
 	
+	//protected AsyncVoiceFeedback mVoiceFeedback;
+	
 	/**Command that was said*/
 	protected int command;
+	protected Integer[] params;
 	
 	@Override
 	public IBinder onBind(Intent arg0) {
@@ -118,7 +101,6 @@ public class HandsFreeService extends Service implements TextToSpeech.OnInitList
 	}
 	@Override
 	public void onCreate() {
-		createTTS();
 		Log.w("HFS", "on create of service");
 		IntentFilter iFilter = new IntentFilter (UpdateReceiver.GET_UPDATE);
 		iFilter.addCategory(Intent.CATEGORY_DEFAULT);
@@ -126,32 +108,27 @@ public class HandsFreeService extends Service implements TextToSpeech.OnInitList
 		updateFilter.addCategory(Intent.CATEGORY_DEFAULT);
 		IntentFilter iSleeping = new IntentFilter(UpdateReceiver.SLEEPING);
 		iSleeping.addCategory(Intent.CATEGORY_DEFAULT);
-		
+		IntentFilter iDoneSpeaking = new IntentFilter(UpdateReceiver.DONE_SPEAKING);
+		iDoneSpeaking.addCategory(Intent.CATEGORY_DEFAULT);
+	
 		mReceiver = new UpdateReceiver();
 		this.registerReceiver(mReceiver, iFilter);
 		this.registerReceiver(mReceiver, updateFilter);
 		this.registerReceiver(mReceiver, iSleeping);
+		this.registerReceiver(mReceiver, iDoneSpeaking);
 		
 		mHandler = new Handler();
 		//for persistence
 		if(mRecorder == null) {
 			startListening();
 		}
-/*		mTotalTime = new ArrayList<Long>();*/
 	}
 	/** Want service to continue running until it is explicitly stopped*/
 	@Override
 	public int onStartCommand(Intent intent, int flags, int startId) {
 		return START_STICKY;
 	}
-	/** Called to signal completion of TTS initialization.  Handle the check of TTS installation here.*/
-	@Override
-	public void onInit(int status) {
-		if (status == TextToSpeech.SUCCESS) {
-			mTTS.setLanguage(Locale.US);
-		}
 
-	}
 	/* Start voice recognition */
 	public void startVoiceRec() {
 		//starting new stage
@@ -226,8 +203,8 @@ public class HandsFreeService extends Service implements TextToSpeech.OnInitList
 						updateBasedOnUI();
 					}
 				}
-				else {
-					respond(COMMAND_NOT_RECOGNIZED_RESULT);
+				else {	
+					callAndExecuteFeedback(COMMAND_NOT_RECOGNIZED_RESULT, null);
 				}
 			}
 
@@ -252,10 +229,10 @@ public class HandsFreeService extends Service implements TextToSpeech.OnInitList
 		//app is not listening if in mWorkoutStopped state
 			case START:{
 				if (mWorkoutRunning) {
-					respond(START_BUTTON_CLICK);
+					callAndExecuteFeedback(START_BUTTON_CLICK, null);
 				}
 				if (mWorkoutPaused) { //resume after pause
-					respond(START_BUTTON_RESUME_CLICK);
+					callAndExecuteFeedback(START_BUTTON_RESUME_CLICK, null);
 					setStateVariables(true, false, false);
 					mTimeManager.setBaseTime(SystemClock.elapsedRealtime());
 				}
@@ -267,8 +244,8 @@ public class HandsFreeService extends Service implements TextToSpeech.OnInitList
 				}
 				//calculate how much total time has passed and respond
 				mUpdateTime = mTimeManager.getTotalTimeAndFormat();
-				
-				respond(STOP_BUTTON_CLICK);
+	
+				callAndExecuteFeedback(STOP_BUTTON_CLICK, mUpdateTime);
 				mTimeManager.resetTotalTime();
 				setStateVariables(false, true, true);
 				break;
@@ -276,12 +253,12 @@ public class HandsFreeService extends Service implements TextToSpeech.OnInitList
 			case PAUSE:{
 				if (mWorkoutRunning) { //pausing the workout
 					setStateVariables(false, true, false);
-					respond(PAUSE_BUTTON_CLICK);
+					callAndExecuteFeedback(PAUSE_BUTTON_CLICK, null);
 					mTimeManager.addSectionOfTime();
 					break;
 				}
 				if (mWorkoutPaused) {
-					respond(ALREADY_PAUSED);
+					callAndExecuteFeedback(ALREADY_PAUSED, null);
 				}				
 				break;
 			}
@@ -293,11 +270,11 @@ public class HandsFreeService extends Service implements TextToSpeech.OnInitList
 				else {
 					mUpdateTime = mTimeManager.getTotalTimeAndFormat();
 				}
-				respond(UPDATE_TIME);
+				callAndExecuteFeedback(UPDATE_TIME, mUpdateTime);
 				break;
 			}
 			default:{
-				respond(COMMAND_NOT_RECOGNIZED_RESULT);
+				callAndExecuteFeedback(COMMAND_NOT_RECOGNIZED_RESULT, null);
 			}
 		}
 	}
@@ -315,8 +292,8 @@ public class HandsFreeService extends Service implements TextToSpeech.OnInitList
 		@Override
 		public void run() {
 			mCounter +=1;
-			Log.w("HFS", "checking if alive");
 			if (mSpeechRecAlive) {
+				Log.w("HFS", "speechRec alive");
 				if (mFinished) {
 					mSpeechRecAlive = false;
 					//reset mFinished
@@ -325,6 +302,7 @@ public class HandsFreeService extends Service implements TextToSpeech.OnInitList
 			}
 
 			else{
+				Log.w("HFS", "speechRec is dead");
 				if (mSpeechRec != null) {
 					mSpeechRec.destroy();	
 				}
@@ -336,8 +314,7 @@ public class HandsFreeService extends Service implements TextToSpeech.OnInitList
 			if (mCounter >= 3) {
 				stopAndDestroyVoiceRec();
 				Log.w("HFS", "SILENCE");
-				mReplies.put(TextToSpeech.Engine.KEY_PARAM_UTTERANCE_ID, SILENCE);
-				mTTS.speak("SILENCE", TextToSpeech.QUEUE_FLUSH,mReplies);
+				callAndExecuteFeedback(NOTHING_SAID, null);
 				mCounter = 0;
 			}
 
@@ -383,9 +360,6 @@ public class HandsFreeService extends Service implements TextToSpeech.OnInitList
 	/* Start listening for commands */
 	public void startListening() {
 		//for persistence
-		if (mTTS == null) {
-			createTTS();
-		}
 /*		Log.w("HFS", "mRecorder:  " + mRecorder);
 		Log.w("HFS", "mSpeechRec:  " + mSpeechRec);*/
 		mListeningForCommands = true;
@@ -417,7 +391,6 @@ public class HandsFreeService extends Service implements TextToSpeech.OnInitList
 		Log.w("HFS", "Stop listening");
 		mListeningForCommands = false;
 		mHandler.removeCallbacks(checkMaxAmp);
-		//just in case
 		mHandler.removeCallbacks(checkSpeechRec);
 		//just to be safe
 		stopAndDestroyRecorder();
@@ -425,49 +398,6 @@ public class HandsFreeService extends Service implements TextToSpeech.OnInitList
 		if (mSpeechRec != null) {
 			stopAndDestroyVoiceRec();
 		}
-	}
-	
-	protected void createTTS() {
-		Log.e("HFS", "create TTS");
-		/*initialize TTS (don't need to check if it is installed because for OS 4.1 and up
-		it is already included.  But maybe do checks here for older versions later */
-		if (mTTS!= null) {
-			return;
-		}
-		mTTS = new TextToSpeech(getApplicationContext(),this);
-		mTTS.setOnUtteranceProgressListener(new UtteranceProgressListener() {
-
-			@Override
-			public void onStart(String arg0) {
-				//don't need
-			}
-
-			@Override
-			public void onError(String arg0) {
-				Log.e("FBS", "on Error");
-
-			}
-			/**need this so speech recognition doesn't pick up on the feedback */
-			@Override
-			public void onDone(String utteranceID) {
-				Log.e("HFS", "utterance:  " + utteranceID);
-				if (!utteranceID.equals(STOP_WORKOUT)) {
-					//delay it to be safe
-					mHandler.removeCallbacks(checkSpeechRec);
-					mHandler.removeCallbacks(checkSpeechRec);
-					mHandler.postDelayed(new Runnable() {
-						@Override
-						public void run() {
-							startListening();
-						}
-					}, 100L);
-
-				}
-				if (utteranceID.equals(STOP_WORKOUT)) {
-					//already stopped listening in respond()
-				}
-			}
-		});
 	}
 	public void destroySpeechRecognizer() {
 		if (mSpeechRec != null) {
@@ -484,18 +414,11 @@ public class HandsFreeService extends Service implements TextToSpeech.OnInitList
 			mRecorder = null;
 		}
 	}
-	/** Turn off and destroy TTS */
-	protected void destroyTTS() {
-		mTTS.stop();
-		mTTS.shutdown();
-		mTTS = null;
-	}
 	@Override
 	public void onDestroy() {
 		Log.w("HFS", "on destroy of service");
 		destroySpeechRecognizer();
 		stopAndDestroyRecorder();
-		destroyTTS();
 		this.unregisterReceiver(mReceiver);
 	}
 	
@@ -506,7 +429,6 @@ public class HandsFreeService extends Service implements TextToSpeech.OnInitList
 			mGetUpdateIntent.addCategory(Intent.CATEGORY_DEFAULT);
 		}
 		mGetUpdateIntent.putExtra(APPLICATION_STATE, action);
-		//Wake up the app just in case
 		this.sendBroadcast(mGetUpdateIntent);
 		Log.w("HFS", "announcing update");
 	}
@@ -522,52 +444,10 @@ public class HandsFreeService extends Service implements TextToSpeech.OnInitList
 		Log.w("HFS", "announcing get current state");
 	}
 	
-	protected void respond (int action) {
-		Log.e("HFS", "respond");
-		stopListening();
-		createTTS();
-		switch(action) {
-			case START_BUTTON_CLICK:{
-				mReplies.put(TextToSpeech.Engine.KEY_PARAM_UTTERANCE_ID, WORKOUT_ALREADY_STARTED);
-				mTTS.speak("workout is in progress", TextToSpeech.QUEUE_FLUSH, mReplies);
-				break;
-			}
-			case STOP_BUTTON_CLICK:{
-				//get update time
-				mReplies.put(TextToSpeech.Engine.KEY_PARAM_UTTERANCE_ID, STOP_WORKOUT);
-				mTTS.speak("stopping workout.  Workout duration:  "+ mUpdateTime, TextToSpeech.QUEUE_FLUSH, mReplies);
-				break;
-			}
-			case PAUSE_BUTTON_CLICK:{
-				mReplies.put(TextToSpeech.Engine.KEY_PARAM_UTTERANCE_ID, PAUSE_WORKOUT);
-				mTTS.speak("pausing workout", TextToSpeech.QUEUE_FLUSH, mReplies);
-				break;
-			}
-			case UPDATE_TIME:{
-				mReplies.put(TextToSpeech.Engine.KEY_PARAM_UTTERANCE_ID, UPDATE_WORKOUT);
-				mTTS.speak(mUpdateTime + "have elapsed", TextToSpeech.QUEUE_FLUSH, mReplies);
-				break;
-			}
-			case INITIAL_CREATE:{
-				mReplies.put(TextToSpeech.Engine.KEY_PARAM_UTTERANCE_ID, START_WORKOUT);
-				mTTS.speak("begin workout", TextToSpeech.QUEUE_FLUSH, mReplies);
-				break;	
-			}
-			case START_BUTTON_RESUME_CLICK:{
-				mReplies.put(TextToSpeech.Engine.KEY_PARAM_UTTERANCE_ID, RESUME_WORKOUT);
-				mTTS.speak("continuing workout", TextToSpeech.QUEUE_FLUSH, mReplies);
-				break;	
-			}
-			case COMMAND_NOT_RECOGNIZED_RESULT:{
-				mReplies.put(TextToSpeech.Engine.KEY_PARAM_UTTERANCE_ID, COMMAND_NOT_RECOGNIZED);
-				mTTS.speak("command not recognized", TextToSpeech.QUEUE_FLUSH, mReplies);
-				break;	
-			}
-			case ALREADY_PAUSED:{
-				mReplies.put(TextToSpeech.Engine.KEY_PARAM_UTTERANCE_ID, ALREADY_PAUSED_WORKOUT);
-				mTTS.speak("workout is already paused", TextToSpeech.QUEUE_FLUSH, mReplies);
-				break;	
-			}
+	public void setServiceState(boolean start) {
+		Log.e("HFS", "BACK IN THE SERVICE BITCH");
+		if (start) {
+			startListening();
 		}
 	}
 	public class UpdateReceiver extends BroadcastReceiver {
@@ -575,6 +455,7 @@ public class HandsFreeService extends Service implements TextToSpeech.OnInitList
 		public static final String GET_UPDATE = "get update";
 		public static final String RECEIVE_CURRENT_STATE = "receive current state";
 		public static final String SLEEPING = "sleeping";
+		public static final String DONE_SPEAKING = "done speaking";
 		
 		/**Names of the current states and base time*/
 		public static final String WORKOUT_RUNNING = "workout running";
@@ -582,10 +463,22 @@ public class HandsFreeService extends Service implements TextToSpeech.OnInitList
 		public static final String WORKOUT_STOPPED = "Workout stopped";
 		public static final String CURRENT_BASE_TIME = "current base time";
 		
+		/**Denotes listening state of service*/
+		public static final String START_OR_NOT = "start or not";
+		
+		
 		@Override
 		public void onReceive(Context context, Intent intent) {
 			String type = intent.getAction();
 			/**This is sent in onPause of Workout*/
+			if (type.equals(DONE_SPEAKING)) {
+				boolean start = intent.getBooleanExtra(START_OR_NOT, false);
+				if (start) {
+					startListening();
+				}
+				Log.e("HFS", "DONE SPEAKING IS RECEIVED!");
+				
+			}
 			if (type.equals(SLEEPING)) {
 				mSleeping = intent.getBooleanExtra(Workout.APP_SLEEPING, false);
 				
@@ -612,7 +505,8 @@ public class HandsFreeService extends Service implements TextToSpeech.OnInitList
 					//set this as updateText
 					mUpdateTime = updateTime;
 				}
-				respond(action);
+				callAndExecuteFeedback(action, mUpdateTime);
+
 			}
 			/**This only happens when a command is recognized in VoiceRec*/
 			if (type.equals(RECEIVE_CURRENT_STATE)) {
@@ -629,10 +523,10 @@ public class HandsFreeService extends Service implements TextToSpeech.OnInitList
 				//app is not listening if stop button is pressed
 					case START:{
 						if (mWorkoutRunning) {
-							respond(START_BUTTON_CLICK);
+							callAndExecuteFeedback(START_BUTTON_CLICK, null);
 						}
 						if (mWorkoutPaused) {
-							respond(START_BUTTON_RESUME_CLICK);
+							callAndExecuteFeedback(START_BUTTON_RESUME_CLICK, null);
 						}
 						announceGetUpdate(HandsFreeService.START);
 						break;
@@ -643,11 +537,11 @@ public class HandsFreeService extends Service implements TextToSpeech.OnInitList
 					}
 					case PAUSE:{
 						if (mWorkoutRunning) {
-							respond(PAUSE_BUTTON_CLICK);
+							callAndExecuteFeedback(PAUSE_BUTTON_CLICK, null);
 							announceGetUpdate(HandsFreeService.PAUSE);
 						}
 						if (mWorkoutPaused) {
-							respond(ALREADY_PAUSED);
+							callAndExecuteFeedback(ALREADY_PAUSED, null);
 						}
 						break;
 					}
@@ -657,13 +551,24 @@ public class HandsFreeService extends Service implements TextToSpeech.OnInitList
 						break;
 					}
 					default:{
-						respond(COMMAND_NOT_RECOGNIZED_RESULT);
+						callAndExecuteFeedback(COMMAND_NOT_RECOGNIZED_RESULT, null);
 					}
 				}
 			}
 		}
 	}
-
+	
+	public void callAndExecuteFeedback(int action, String time) {
+		stopListening();
+		AsyncVoiceFeedback mVoiceFeedback = new AsyncVoiceFeedback(getApplicationContext(), HandsFreeService.this);
+		params = new Integer[1];
+		params[0] = action;
+		mVoiceFeedback.execute(params);
+		if (time != null) {
+			mVoiceFeedback.setUpdateTime(time);
+		}
+		mVoiceFeedback = null;
+	}
 	public void setStateVariables (boolean running, boolean pause, boolean stop) {
 		if (running) {
 			mWorkoutRunning = true;
@@ -684,11 +589,4 @@ public class HandsFreeService extends Service implements TextToSpeech.OnInitList
 			mWorkoutStopped = false;
 		}
 	}
-	
-	/**Gets how much time has passed between the base and the current time, parses it 
-	 * and adds it to the mTotalTime ArrayList*/
-/*	public long getTimePassed() {
-		long timePassed = Utils.getParsedTime((SystemClock.elapsedRealtime() - mBaseTime));
-		return timePassed;
-	}*/
 }

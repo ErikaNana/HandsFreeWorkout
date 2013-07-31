@@ -111,6 +111,7 @@ public class Workout extends Activity implements OnClickListener{
 	 * 
 	 * need to stop listening if there is a phone call interruption
 	 *
+	 * make the service run in the foreground
 	 */
 
 
@@ -349,7 +350,6 @@ public class Workout extends Activity implements OnClickListener{
 	/** Called when activity is interrupted, like orientation change */
 	@Override
 	protected void onPause() {
-		Log.w("Workout", "activity interrupted");
 		if (mTimer != null) {
 			mCurrentBase = mTimer.getBase();
 			isSleeping = true;
