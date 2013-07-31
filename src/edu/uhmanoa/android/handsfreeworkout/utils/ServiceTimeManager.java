@@ -95,7 +95,7 @@ public class ServiceTimeManager {
 	
 	public long getUpdateTime() {
 		long timePassedRecent = getTimePassed();
-		long totalTimeSoFar = Utils.getTotalTime(mTotalTime);
+		long totalTimeSoFar = getTotalTime();
 		long totalTime = totalTimeSoFar + timePassedRecent;
 		return totalTime;
 	}
