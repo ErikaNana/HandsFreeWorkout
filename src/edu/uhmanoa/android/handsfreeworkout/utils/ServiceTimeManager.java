@@ -43,13 +43,13 @@ public class ServiceTimeManager {
 	}
 	
 	/**Gets the total time and formats it*/
-	public String getTotalTimeAndFormat() {
+	public static String getTotalTimeAndFormat() {
 		long totalTime = getTotalTime();
 		return getUpdateTimeFromRaw(totalTime);
 	}
 	
 	/**Gets the formatted time based on the raw time*/
-	public String getUpdateTimeFromRaw(long rawTime){
+	public static String getUpdateTimeFromRaw(long rawTime){
 		//get time in hours minutes seconds
 		int hours = (int) ((rawTime/(60 * 60)) % 24);
 		int minutes = (int) ((rawTime / 60) % 60);
