@@ -10,7 +10,6 @@ import android.content.IntentFilter;
 import android.content.pm.PackageManager;
 import android.content.pm.ResolveInfo;
 import android.graphics.Color;
-import android.graphics.Typeface;
 import android.media.AudioManager;
 import android.os.Bundle;
 import android.os.Handler;
@@ -20,14 +19,13 @@ import android.util.Log;
 import android.view.View;
 import android.view.View.OnClickListener;
 import android.view.Window;
-import android.widget.Button;
 import android.widget.Chronometer;
 import android.widget.Chronometer.OnChronometerTickListener;
-import android.widget.LinearLayout;
 import android.widget.TextView;
 import edu.uhmanoa.android.handsfreeworkout.R;
 import edu.uhmanoa.android.handsfreeworkout.customcomponents.CustomButton;
 import edu.uhmanoa.android.handsfreeworkout.customcomponents.CustomTimer;
+import edu.uhmanoa.android.handsfreeworkout.customcomponents.DialogActivity;
 import edu.uhmanoa.android.handsfreeworkout.services.HandsFreeService;
 import edu.uhmanoa.android.handsfreeworkout.utils.Utils;
 
@@ -89,6 +87,7 @@ public class Workout extends Activity implements OnClickListener{
 	/**Booleans to show which part of the app is doing the updating*/
 	protected static final boolean UI = true;
 	protected static final boolean HF_SERVICE = false;
+	
 	/**
 	 * ISSUES TO DEAL WITH STILL:
 	 * accidental loud noises
@@ -111,7 +110,7 @@ public class Workout extends Activity implements OnClickListener{
 
 		//inflate the layout
 		setContentView(R.layout.workout);
-		setLayoutFont();
+		Utils.setLayoutFont(this, this, Utils.WORKOUT);
 
 		//initialize variables
 		mWelcomeMessage = (TextView) findViewById(R.id.welcomeMessage);
@@ -147,6 +146,10 @@ public class Workout extends Activity implements OnClickListener{
 		/* tell OS that volume buttons should affect "media" volume, since that's the volume
 		used for application */
 		setVolumeControlStream(AudioManager.STREAM_MUSIC);
+		
+		mWorkoutRunning = true;
+		mWorkoutPaused = false;
+		mWorkoutStopped = false;
 	}
 
 	/**Handle button clicks */
@@ -326,16 +329,16 @@ public class Workout extends Activity implements OnClickListener{
 	@Override
 	protected void onPause() {
 		if (mTimer != null) {
-			mCurrentBase = mTimer.getBase();
-			isSleeping = true;
-			announceSleeping();
 			mTimerText = (String) mTimer.getText();
+			mCurrentBase = mTimer.getBase();
 			Log.w("Workout", "(on pause) timer Text:  " + mTimerText);
 			//for persistence
 			if (!mWorkoutPaused) {
 				mTimeWhenStopped = mTimer.getBase() - SystemClock.elapsedRealtime();
 			}
 		}
+		isSleeping = true;
+		announceSleeping();
 		//unregister the receiver
 		this.unregisterReceiver(mReceiver);
 		super.onPause();
@@ -358,16 +361,6 @@ public class Workout extends Activity implements OnClickListener{
 		}
 		else {
 			//initial create
-			//So that app doesn't pick up feedback from Welcome
-			Handler handler = new Handler();
-			handler.postDelayed(new Runnable() {
-
-				@Override
-				public void run() {
-					/*startHandsFreeService();	*/
-					announceStartListening();
-				}
-			}, 1000L);
 			createTimer(0);
 			Log.w("Workout", "initial create");
 			mInitialCreate = false;
@@ -380,6 +373,7 @@ public class Workout extends Activity implements OnClickListener{
 		}
 
 		//special case if workout is stopped
+		
 		if(mWorkoutStopped) {
 			mStartButton.turnOn();
 			mStopButton.turnOff();
@@ -473,11 +467,6 @@ public class Workout extends Activity implements OnClickListener{
 		this.sendBroadcast(mUpdateIntent);
 	}
 	
-	protected void announceStartListening() {
-		Log.w("Workout", "start listening");
-		Intent listen = new Intent(HandsFreeService.UpdateReceiver.START_LISTENING);
-		this.sendBroadcast(listen);
-	}
 	protected void announceSleeping() {
 		Log.w("Workout", "announce sleeping");
 		if (mSleepingIntent == null) {
@@ -488,7 +477,9 @@ public class Workout extends Activity implements OnClickListener{
 		mSleepingIntent.putExtra(HandsFreeService.UpdateReceiver.WORKOUT_RUNNING, mWorkoutRunning);
 		mSleepingIntent.putExtra(HandsFreeService.UpdateReceiver.WORKOUT_PAUSED, mWorkoutPaused);
 		mSleepingIntent.putExtra(HandsFreeService.UpdateReceiver.WORKOUT_STOPPED, mWorkoutStopped);
-		mSleepingIntent.putExtra(HandsFreeService.UpdateReceiver.CURRENT_BASE_TIME, mCurrentBase);
+		if (mTimer != null) {
+			mSleepingIntent.putExtra(HandsFreeService.UpdateReceiver.CURRENT_BASE_TIME, mCurrentBase);	
+		}
 		this.sendBroadcast(mSleepingIntent);
 	}
 	public class ServiceReceiver extends BroadcastReceiver {
@@ -562,22 +553,6 @@ public class Workout extends Activity implements OnClickListener{
 		}
 		Log.e("Workout", "Workout onDestroy");
 	}
-	/**Set the layout font */
-	public void setLayoutFont() {
-		Typeface font = Typeface.createFromAsset(getAssets(), "fonts/Edmondsans-Bold.otf");
-		LinearLayout layout = (LinearLayout) findViewById(R.id.workout_layout);
-		int count= layout.getChildCount();
-		for (int i = 0; i < count; i++) {
-			View view = layout.getChildAt(i);
-
-			if (view instanceof TextView) {
-				((TextView) view).setTypeface(font);
-			}
-			if (view instanceof CustomButton) {
-				((Button) view).setTypeface(font);
-			}
-		}
-	}
 
 	/**Set the buttons according to the state of the applications.  For persistence*/
 	public void setButtons () {
@@ -633,5 +608,27 @@ public class Workout extends Activity implements OnClickListener{
 				mCommandText.setText("");
 			}
 		}, 1000L);
+	}
+	
+	/***********************************Dialog Stuff *********************************/
+	
+	public static final int LEAVE_APP = 7;
+	
+	@Override
+	public void onBackPressed() {
+		/*new CustomDialog().show(getFragmentManager(), "dialog");*/
+		Intent intent = new Intent(this, DialogActivity.class);
+		startActivityForResult(intent, LEAVE_APP);
+	}
+	
+	//callback from dialog
+	@Override
+	protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+		super.onActivityResult(requestCode, resultCode, data);
+		if (requestCode == LEAVE_APP) {
+			if (resultCode == RESULT_OK) {
+				finish();
+			}
+		}
 	}
 }

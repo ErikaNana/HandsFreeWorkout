@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/dialog_layout"
+    android:layout_width="wrap_content"
+    android:layout_height="wrap_content"
+    android:layout_marginTop="20dip"
+    android:gravity="center"
+    android:orientation="vertical" >
+ 
+    <TextView
+        android:id = "@+id/exitText"
+        android:layout_width="fill_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center"
+        android:textSize="@dimen/dialogTextSize"
+        android:paddingBottom="4dip"
+        android:text="@string/exitText"/>
+	
+    <LinearLayout
+       android:orientation="horizontal"
+       android:layout_width="wrap_content"
+       android:layout_height="wrap_content"
+       android:layout_centerHorizontal="true"
+       android:layout_below="@+id/exitText">
+       
+    <Button
+        android:id="@+id/dialogNegativeButton"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:textSize="@dimen/dialogTextSize"
+        android:text="@string/dialogNegative"
+        style="@android:style/Widget.Holo.Light.Button.Borderless.Small" />
+  
+    <Button
+        android:id="@+id/dialogPositiveButton"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="@string/dialogPositive"
+        android:textSize="@dimen/dialogTextSize"
+        android:layout_marginLeft="20dp"
+        style="@android:style/Widget.Holo.Light.Button.Borderless.Small" />
+    	</LinearLayout>
+
+</RelativeLayout>

@@ -9,5 +9,11 @@
     <string name="stopButton_text">Stop</string>
     <string name="pauseButton_text">Pause</string>
     <string name="initialTime">0 seconds</string>
+    <string name="programName">HandsFree Workout</string>
+    <string name="notificationText">Program is in danger!</string>
+    <string name="notificationTicker">Important!</string>
+    <string name="exitText">You are about to leave your workout!  Continue?</string>
+    <string name="dialogPositive">I\'m over it</string>
+    <string name="dialogNegative">Nope jk!</string>
 
 </resources>

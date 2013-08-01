@@ -3,8 +3,19 @@ package edu.uhmanoa.android.handsfreeworkout.utils;
 import java.io.File;
 import java.util.ArrayList;
 
+import android.app.Activity;
+import android.content.Context;
+import android.graphics.Typeface;
 import android.os.Environment;
 import android.util.Log;
+import android.view.View;
+import android.view.ViewGroup;
+import android.widget.Button;
+import android.widget.LinearLayout;
+import android.widget.RelativeLayout;
+import android.widget.TextView;
+import edu.uhmanoa.android.handsfreeworkout.R;
+import edu.uhmanoa.android.handsfreeworkout.customcomponents.CustomButton;
 
 /**
  * This is a helper class with useful functions.
@@ -180,5 +191,34 @@ public class Utils {
 			timeString = "0 seconds";
 		}
 		return timeString;
+	}
+	
+	public static final int WELCOME = 2;
+	public static final int WORKOUT = 3;
+	
+	/**Set the layout font */
+	public static void setLayoutFont(Context context, Activity activity, int whichLayout) {
+		Typeface font = Typeface.createFromAsset(context.getAssets(), "fonts/Edmondsans-Bold.otf");
+		ViewGroup layout = null;
+		
+		if (whichLayout == WELCOME) {
+			layout = (RelativeLayout) activity.findViewById(R.id.welcome_layout);
+		}
+		if (whichLayout == WORKOUT) {
+			layout = (LinearLayout) activity.findViewById(R.id.workout_layout);
+		}
+		
+		int count= layout.getChildCount();
+		for (int i = 0; i < count; i++) {
+			View view = layout.getChildAt(i);
+
+			if (view instanceof TextView) {
+				((TextView) view).setTypeface(font);
+			}
+			if (view instanceof CustomButton) {
+				((Button) view).setTypeface(font);
+			}
+		}
+		
 	}
 }

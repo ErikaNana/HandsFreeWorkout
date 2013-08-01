@@ -5,11 +5,14 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Locale;
 
+import android.app.Notification;
+import android.app.PendingIntent;
 import android.app.Service;
 import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
+import android.content.res.Resources;
 import android.media.MediaRecorder;
 import android.os.Bundle;
 import android.os.Handler;
@@ -21,7 +24,10 @@ import android.speech.SpeechRecognizer;
 import android.speech.tts.TextToSpeech;
 import android.speech.tts.TextToSpeech.OnInitListener;
 import android.speech.tts.UtteranceProgressListener;
+import android.support.v4.app.NotificationCompat;
+import android.support.v4.app.NotificationCompat.Builder;
 import android.util.Log;
+import edu.uhmanoa.android.handsfreeworkout.R;
 import edu.uhmanoa.android.handsfreeworkout.ui.Workout;
 import edu.uhmanoa.android.handsfreeworkout.utils.ServiceTimeManager;
 import edu.uhmanoa.android.handsfreeworkout.utils.Utils;
@@ -48,7 +54,8 @@ public class HandsFreeService extends Service implements OnInitListener{
 	protected String mUpdateTime;
 	protected boolean mSleeping;
 	protected boolean mStop;
-	
+	protected boolean mListening;
+
 	/* Value to determine what needs to be said */
 	protected int mResponse;
 	
@@ -108,20 +115,17 @@ public class HandsFreeService extends Service implements OnInitListener{
 	@Override
 	public void onCreate() {
 		Log.w("HFS", "on create of service");
-		IntentFilter iFilter = new IntentFilter (UpdateReceiver.GET_UPDATE);
-		iFilter.addCategory(Intent.CATEGORY_DEFAULT);
-		IntentFilter updateFilter = new IntentFilter(UpdateReceiver.RECEIVE_CURRENT_STATE);
-		updateFilter.addCategory(Intent.CATEGORY_DEFAULT);
-		IntentFilter iSleeping = new IntentFilter(UpdateReceiver.SLEEPING);
-		iSleeping.addCategory(Intent.CATEGORY_DEFAULT);
-		IntentFilter iStartListening = new IntentFilter(UpdateReceiver.START_LISTENING);
-		iStartListening.addCategory(Intent.CATEGORY_DEFAULT);
+		IntentFilter getUpdateFilter = new IntentFilter (UpdateReceiver.GET_UPDATE);
+		getUpdateFilter.addCategory(Intent.CATEGORY_DEFAULT);
+		IntentFilter currentStateFilter = new IntentFilter(UpdateReceiver.RECEIVE_CURRENT_STATE);
+		currentStateFilter.addCategory(Intent.CATEGORY_DEFAULT);
+		IntentFilter sleepingFilter = new IntentFilter(UpdateReceiver.SLEEPING);
+		sleepingFilter.addCategory(Intent.CATEGORY_DEFAULT);
 	
 		mReceiver = new UpdateReceiver();
-		this.registerReceiver(mReceiver, iFilter);
-		this.registerReceiver(mReceiver, updateFilter);
-		this.registerReceiver(mReceiver, iSleeping);
-		this.registerReceiver(mReceiver, iStartListening);
+		this.registerReceiver(mReceiver, getUpdateFilter);
+		this.registerReceiver(mReceiver, currentStateFilter);
+		this.registerReceiver(mReceiver, sleepingFilter);
 		
 		mSpeechRecListen = new RecognitionListener() {
 
@@ -219,11 +223,8 @@ public class HandsFreeService extends Service implements OnInitListener{
 			mRecognizerIntent = new Intent (RecognizerIntent.ACTION_RECOGNIZE_SPEECH);
 			//this extra is required
 			mRecognizerIntent.putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM);
-			// text prompt to show to the user when asking them to speak. 
-			mRecognizerIntent.putExtra(RecognizerIntent.EXTRA_PROMPT, "Voice Recognition");
 		}
 		mSpeechRec.startListening(mRecognizerIntent);
-		//give it a second
 	}
 	/**Simulates accessing the UI.  Responds and updates state variables and time accordingly*/
 	private void updateBasedOnUI(boolean offline) {		
@@ -386,6 +387,7 @@ public class HandsFreeService extends Service implements OnInitListener{
 		destroyTTS();
 		Log.w("HFS", "start listening");
 		
+		mListening = true;
 		mRecorder = new MediaRecorder();
 		mRecorder.setAudioSource(MediaRecorder.AudioSource.MIC);
 		mRecorder.setOutputFormat(MediaRecorder.OutputFormat.THREE_GPP);
@@ -408,6 +410,7 @@ public class HandsFreeService extends Service implements OnInitListener{
 	}
 	/* Stop listening for commands */
 	public void stopListening() {
+		mListening = false;
 		Log.w("HFS", "Stop listening");
 		mHandler.removeCallbacks(checkMaxAmp);
 		//just to be safe
@@ -471,7 +474,6 @@ public class HandsFreeService extends Service implements OnInitListener{
 		public static final String GET_UPDATE = "get update";
 		public static final String RECEIVE_CURRENT_STATE = "receive current state";
 		public static final String SLEEPING = "sleeping";
-		public static final String START_LISTENING = "start listening";
 		
 		/**Names of the current states and base time*/
 		public static final String WORKOUT_RUNNING = "workout running";
@@ -485,24 +487,38 @@ public class HandsFreeService extends Service implements OnInitListener{
 		@Override
 		public void onReceive(Context context, Intent intent) {
 			String type = intent.getAction();
-			/**Sent by Welcome after button click*/
-			if (type.equals(START_LISTENING)) {
-				startListening();
-			}
 			/**Sent in onPause of Workout*/
 			if (type.equals(SLEEPING)) {
 				mSleeping = intent.getBooleanExtra(Workout.APP_SLEEPING, false);
 				
 				//update variables if sleeping
 				if (mSleeping) {
+					//run service as foreground so less likely to get killed
+					startForeground(1234, buildNotification(context));
+					
 					//states are now updated
 					mWorkoutRunning = intent.getBooleanExtra(WORKOUT_RUNNING, false);
 					mWorkoutPaused = intent.getBooleanExtra(WORKOUT_PAUSED, false);
 					mWorkoutStopped = intent.getBooleanExtra(WORKOUT_STOPPED, false);
 
 					//manage the time
-					mTimeManager = new ServiceTimeManager(intent.getLongExtra(CURRENT_BASE_TIME, 0));
-					
+					if (intent.getLongExtra(CURRENT_BASE_TIME,0) != 0){
+						mTimeManager = new ServiceTimeManager(intent.getLongExtra(CURRENT_BASE_TIME, 0));
+					}
+					else {
+						//idk....gotta think it through still
+					}
+					//just in case
+					if (!mWorkoutStopped) {
+						if (!mListening) {
+							startListening();
+						}
+					}
+				}
+				else {
+					mTimeManager = null;
+					//stop running in the foreground
+					stopForeground(true);
 				}
 				Log.e("HFS", "APP IS SLEEPING:  " + mSleeping);
 				
@@ -571,7 +587,7 @@ public class HandsFreeService extends Service implements OnInitListener{
 			@Override
 			public void onError(String arg0) {
 			}
-			/**need this so speech recognition doesn't pick up on the feedback */
+			
 			@Override
 			public void onDone(String utteranceID) {
 				Log.e("AVFB", "YES!!!!");
@@ -588,6 +604,10 @@ public class HandsFreeService extends Service implements OnInitListener{
 	public void onInit(int status) {
 		if (status == TextToSpeech.SUCCESS) {
 			mTTS.setLanguage(Locale.US);
+		}
+		//just in case
+		if (mTTS == null) {
+			getFeedback(action);
 		}
 		mReplies.put(TextToSpeech.Engine.KEY_PARAM_UTTERANCE_ID, STRING);
 		
@@ -633,7 +653,6 @@ public class HandsFreeService extends Service implements OnInitListener{
 			}
 		}
 	}
-	
 	/** Turn off and destroy TTS */
 	protected void destroyTTS() {
 		if (mTTS != null) {
@@ -642,4 +661,26 @@ public class HandsFreeService extends Service implements OnInitListener{
 			mTTS = null;
 		}
 	}
+	
+	protected Notification buildNotification(Context context) {
+		Resources resources = context.getResources();
+		String title = resources.getString(R.string.programName);
+		String text = resources.getString(R.string.notificationText);
+		String tickerText = resources.getString(R.string.notificationTicker);
+		Intent handsFreeServiceIntent = new Intent(context, Workout.class);
+		PendingIntent pendingIntent = PendingIntent.getActivity(context, 0, handsFreeServiceIntent, 0);
+		Builder notificationBuilder = new NotificationCompat.Builder(context)
+																	.setContentTitle(title)
+																	.setContentText(text)
+																	.setTicker(tickerText);
+		//supply a PendingIntent to be sent when the notification is clicked
+		notificationBuilder.setContentIntent(pendingIntent);
+		//make the notification disappear from the notification area when it's pressed
+		notificationBuilder.setAutoCancel(true);
+		//get a reference to NotificationManager
+		Notification notification = notificationBuilder.build();
+		return notification;
+	}
+	
+	
 }

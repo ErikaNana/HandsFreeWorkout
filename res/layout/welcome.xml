@@ -26,7 +26,6 @@
 	    android:background="@android:color/transparent"
 	    android:paddingLeft="4dip"
 	    android:paddingRight="4dip"
-	    android:enabled="false"
 	    android:text="@string/startButton_initial_text"
 	    android:textSize="@dimen/initialStartTextSize" />
 
