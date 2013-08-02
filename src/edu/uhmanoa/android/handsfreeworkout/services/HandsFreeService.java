@@ -45,6 +45,7 @@ public class HandsFreeService extends Service implements OnInitListener{
 	protected Intent mRecognizerIntent;
 	protected Intent mGetUpdateIntent;
 	protected Intent mGetCurrentStateIntent;
+	protected Intent mSendCurrentState;
 	
 	protected boolean mSpeechRecAlive;
 	protected boolean mFinished; //if speech recognition heard something
@@ -313,6 +314,7 @@ public class HandsFreeService extends Service implements OnInitListener{
 
 		@Override
 		public void run() {
+			mCounter +=1;
 			Log.w("HFS", "counter:  " + mCounter);
 			if (mSpeechRecAlive) {
 				Log.w("HFS", "speechRec alive");
@@ -331,17 +333,16 @@ public class HandsFreeService extends Service implements OnInitListener{
 				startVoiceRec();
 			}
 			
-			if (mCounter >= 3) {
+			if (mCounter >= 4) {
 				stopAndDestroyVoiceRec();
 				Log.w("HFS", "SILENCE");
 				getFeedback(NOTHING_SAID);
 				mCounter = 0;
 				return;
 			}
-			if (mCounter < 3) {
+			if (mCounter < 4) {
 				mHandler.postDelayed(checkSpeechRec, UPDATE_FREQUENCY);			
 			}
-			mCounter +=1;
 		}
 	};
 
@@ -382,7 +383,7 @@ public class HandsFreeService extends Service implements OnInitListener{
 		}
 	};
 
-	/* Start listening for commands */
+	/* Start listening for commands.  This is called only after done speaking */
 	public void startListening() {
 		destroyTTS();
 		Log.w("HFS", "start listening");
@@ -465,8 +466,18 @@ public class HandsFreeService extends Service implements OnInitListener{
 			mGetCurrentStateIntent = new Intent(Workout.ServiceReceiver.GET_CURRENT_STATE);			
 		}
 		this.sendBroadcast(mGetCurrentStateIntent);			
-
 		Log.w("HFS", "announcing get current state");
+	}
+	
+	protected void sendCurrentState() {
+		Log.w("HFS", "sending the current state");
+		if (mSendCurrentState == null) {
+			mSendCurrentState = new Intent(Workout.ServiceReceiver.SET_CURRENT_STATE);
+		}
+		mSendCurrentState.putExtra(UpdateReceiver.WORKOUT_RUNNING, mWorkoutRunning);
+		mSendCurrentState.putExtra(UpdateReceiver.WORKOUT_PAUSED, mWorkoutPaused);
+		mSendCurrentState.putExtra(UpdateReceiver.WORKOUT_STOPPED, mWorkoutStopped);
+		this.sendBroadcast(mSendCurrentState);
 	}
 	
 	public class UpdateReceiver extends BroadcastReceiver {
@@ -496,7 +507,7 @@ public class HandsFreeService extends Service implements OnInitListener{
 					//run service as foreground so less likely to get killed
 					startForeground(1234, buildNotification(context));
 					
-					//states are now updated
+					//so that can keep track of the current state of the app
 					mWorkoutRunning = intent.getBooleanExtra(WORKOUT_RUNNING, false);
 					mWorkoutPaused = intent.getBooleanExtra(WORKOUT_PAUSED, false);
 					mWorkoutStopped = intent.getBooleanExtra(WORKOUT_STOPPED, false);
@@ -508,12 +519,6 @@ public class HandsFreeService extends Service implements OnInitListener{
 					else {
 						//idk....gotta think it through still
 					}
-					//just in case
-					if (!mWorkoutStopped) {
-						if (!mListening) {
-							startListening();
-						}
-					}
 				}
 				else {
 					mTimeManager = null;
@@ -523,6 +528,7 @@ public class HandsFreeService extends Service implements OnInitListener{
 				Log.e("HFS", "APP IS SLEEPING:  " + mSleeping);
 				
 			}
+			/**If a button is clicked and needs feedback*/
 			if (type.equals(GET_UPDATE)) {
 				Log.w("HFS", "broadcast received: " + intent.getAction());
 
@@ -664,22 +670,17 @@ public class HandsFreeService extends Service implements OnInitListener{
 	
 	protected Notification buildNotification(Context context) {
 		Resources resources = context.getResources();
-		String title = resources.getString(R.string.programName);
-		String text = resources.getString(R.string.notificationText);
-		String tickerText = resources.getString(R.string.notificationTicker);
-		Intent handsFreeServiceIntent = new Intent(context, Workout.class);
-		PendingIntent pendingIntent = PendingIntent.getActivity(context, 0, handsFreeServiceIntent, 0);
+		PendingIntent pendingIntent = PendingIntent.getActivity(context, 0, new Intent(context,Workout.class), 0);
 		Builder notificationBuilder = new NotificationCompat.Builder(context)
-																	.setContentTitle(title)
-																	.setContentText(text)
-																	.setTicker(tickerText);
+																	.setContentTitle(resources.getString(R.string.programName))
+																	.setContentText(resources.getString(R.string.notificationText))
+																	.setTicker(resources.getString(R.string.notificationTicker));
 		//supply a PendingIntent to be sent when the notification is clicked
 		notificationBuilder.setContentIntent(pendingIntent);
 		//make the notification disappear from the notification area when it's pressed
 		notificationBuilder.setAutoCancel(true);
 		//get a reference to NotificationManager
-		Notification notification = notificationBuilder.build();
-		return notification;
+		return notificationBuilder.build();
 	}
 	
 	

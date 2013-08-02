@@ -97,7 +97,6 @@ public class Workout extends Activity implements OnClickListener{
 	 * 
 	 * need to stop listening if there is a phone call interruption
 	 *
-	 * make the service run in the foreground
 	 */
 
 
@@ -127,7 +126,6 @@ public class Workout extends Activity implements OnClickListener{
 		mPauseButton.setOnClickListener(this);
 
 		mInitialCreate = true;
-		mWorkoutRunning = true;
 
 		//disable button if no recognition service is present
 		PackageManager pm = getPackageManager();
@@ -347,11 +345,27 @@ public class Workout extends Activity implements OnClickListener{
 	/** Called when user comes back to the activity */
 	@Override
 	protected void onResume() {
+		super.onResume();
+		IntentFilter handsFree = new IntentFilter(ServiceReceiver.UPDATE);
+		handsFree.addCategory(Intent.CATEGORY_DEFAULT);
+		IntentFilter getCurrentState = new IntentFilter(ServiceReceiver.GET_CURRENT_STATE);
+		getCurrentState.addCategory(Intent.CATEGORY_DEFAULT);
+		IntentFilter setCurrentState = new IntentFilter(ServiceReceiver.SET_CURRENT_STATE);
+		setCurrentState.addCategory(Intent.CATEGORY_DEFAULT);
+		
+		//register the receiver
+		mReceiver = new ServiceReceiver();
+		this.registerReceiver(mReceiver, handsFree);
+		this.registerReceiver(mReceiver, getCurrentState);
+		this.registerReceiver(mReceiver, setCurrentState);
+		
 		Log.w("Workout", "on resume");
 		//so that can resume, but also considering first run of app
 		Log.w("Workout","initial create:  "+ mInitialCreate);
 		isSleeping = false;
 		announceSleeping();
+		
+		//when app wakes up
 		if (!mInitialCreate) {
 				//persist the time 
 			if (mWorkoutRunning) {
@@ -368,6 +382,7 @@ public class Workout extends Activity implements OnClickListener{
 
 		setButtons();
 
+		//case if workout is paused
 		if (mWorkoutPaused) {
 			mCommandText.setTextColor(Color.YELLOW);
 		}
@@ -381,16 +396,6 @@ public class Workout extends Activity implements OnClickListener{
 			mCommandText.setTextColor(Color.RED);
 		}
 
-		IntentFilter handsFree = new IntentFilter(ServiceReceiver.UPDATE);
-		handsFree.addCategory(Intent.CATEGORY_DEFAULT);
-		IntentFilter getCurrentState = new IntentFilter(ServiceReceiver.GET_CURRENT_STATE);
-		getCurrentState.addCategory(Intent.CATEGORY_DEFAULT);
-		
-		//initialize the receiver
-		mReceiver = new ServiceReceiver();
-		this.registerReceiver(mReceiver, handsFree);
-		this.registerReceiver(mReceiver, getCurrentState);
-		super.onResume();
 	}
 
 	/** Save the instance data */
@@ -486,11 +491,13 @@ public class Workout extends Activity implements OnClickListener{
 
 		public static final String UPDATE = "update";
 		public static final String GET_CURRENT_STATE = "get current state";
+		public static final String SET_CURRENT_STATE = "set current state";
 		
 		@Override
 		public void onReceive(Context context, Intent intent) {
 			Log.w("Workout", "broadcast received");
 			Log.w("Workout", "intent action:  " + intent.getAction());
+			//if not sleeping anymore
 			if (intent.getAction().equals(UPDATE)) {
 				int action = intent.getIntExtra(HandsFreeService.APPLICATION_STATE, 0);
 
@@ -536,6 +543,12 @@ public class Workout extends Activity implements OnClickListener{
 				mCurrentStateIntent.putExtra(HandsFreeService.UpdateReceiver.WORKOUT_STOPPED, mWorkoutStopped);
 				sendBroadcast(mCurrentStateIntent);
 				Log.w("Workout", "announcing receiving curent state");
+			}
+			//When the app wakes up from offline mode
+			if (intent.getAction().equals(SET_CURRENT_STATE)) {
+				mWorkoutRunning = intent.getBooleanExtra(HandsFreeService.UpdateReceiver.WORKOUT_RUNNING, false);
+				mWorkoutPaused = intent.getBooleanExtra(HandsFreeService.UpdateReceiver.WORKOUT_PAUSED, false);
+				//finish this
 			}
 		}
 	}
@@ -616,11 +629,10 @@ public class Workout extends Activity implements OnClickListener{
 	
 	@Override
 	public void onBackPressed() {
-		/*new CustomDialog().show(getFragmentManager(), "dialog");*/
 		Intent intent = new Intent(this, DialogActivity.class);
 		startActivityForResult(intent, LEAVE_APP);
 	}
-	
+
 	//callback from dialog
 	@Override
 	protected void onActivityResult(int requestCode, int resultCode, Intent data) {

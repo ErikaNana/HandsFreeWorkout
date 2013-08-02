@@ -22,6 +22,10 @@ import edu.uhmanoa.android.handsfreeworkout.customcomponents.CustomButton;
  * Made the methods static so that an instance of the class is not needed to call the methods.
  */
 public class Utils {
+	/**Constants for setting the font for the right activity*/
+	public static final int WELCOME = 2;
+	public static final int WORKOUT = 3;
+	
 	/* Get the average max amplitude */
 	public static int getBaseline(ArrayList<Integer> mAverage) {
 		int averageTotal = 0;
@@ -191,11 +195,7 @@ public class Utils {
 			timeString = "0 seconds";
 		}
 		return timeString;
-	}
-	
-	public static final int WELCOME = 2;
-	public static final int WORKOUT = 3;
-	
+	}	
 	/**Set the layout font */
 	public static void setLayoutFont(Context context, Activity activity, int whichLayout) {
 		Typeface font = Typeface.createFromAsset(context.getAssets(), "fonts/Edmondsans-Bold.otf");

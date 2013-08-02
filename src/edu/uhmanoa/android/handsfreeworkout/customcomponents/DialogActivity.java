@@ -2,7 +2,6 @@ package edu.uhmanoa.android.handsfreeworkout.customcomponents;
 
 import android.app.Activity;
 import android.content.Intent;
-import android.graphics.Color;
 import android.graphics.Typeface;
 import android.os.Bundle;
 import android.view.View;
@@ -14,9 +13,9 @@ import edu.uhmanoa.android.handsfreeworkout.R;
 
 public class DialogActivity extends Activity implements OnClickListener {
 	
-	protected TextView mDialogText;
-	protected Button   mDialogPosButton;
-	protected Button   mDialogNegButton;
+	protected static TextView mDialogText;
+	protected static Button   mDialogPosButton;
+	protected static Button   mDialogNegButton;
 	
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
@@ -36,21 +35,13 @@ public class DialogActivity extends Activity implements OnClickListener {
 		mDialogNegButton.setOnClickListener(this);
 		
 		//style the components
-		mDialogPosButton.setTextColor(Color.RED);
-		mDialogPosButton.setBackgroundColor(Color.TRANSPARENT);
 		mDialogPosButton.setTypeface(font);
-		
-		mDialogNegButton.setTextColor(Color.GREEN);
-		mDialogNegButton.setBackgroundColor(Color.TRANSPARENT);
 		mDialogNegButton.setTypeface(font);
-		
-		mDialogText.setBackgroundColor(Color.TRANSPARENT);
 		mDialogText.setTypeface(font);
 		
 		//so that dialog won't be closed when touched outside the dialog
 		this.setFinishOnTouchOutside(false);
 	}
-	
 
 	@Override
 	public void onClick(View view) {
