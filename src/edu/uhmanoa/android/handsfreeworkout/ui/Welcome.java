@@ -50,7 +50,7 @@ public class Welcome extends Activity implements View.OnClickListener{
 	
 	protected void announceInitialTime() {
 		Log.w("Welcome", "announcing update");
-			Intent mUpdateIntent = new Intent(HandsFreeService.UpdateReceiver.GET_UPDATE);
+			Intent mUpdateIntent = new Intent(HandsFreeService.UpdateReceiver.GET_ACTION);
 			mUpdateIntent.addCategory(Intent.CATEGORY_DEFAULT);
 			mUpdateIntent.putExtra(Workout.UPDATE_ACTION, HandsFreeService.INITIAL_CREATE);
 		this.sendBroadcast(mUpdateIntent);
