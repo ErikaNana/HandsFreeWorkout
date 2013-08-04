@@ -536,7 +536,8 @@ public class HandsFreeService extends Service implements OnInitListener{
 
 				//get the update action and the update string
 				int action = intent.getIntExtra(Workout.UPDATE_ACTION, 0);
-				mTimeOfAction = intent.getLongExtra(TIME_OF_ACTION, 0);
+/*				mTimeOfAction = intent.getLongExtra(TIME_OF_ACTION, 0);*/
+				mTimeOfAction = SystemClock.elapsedRealtime();
 /*				String updateTime = intent.getStringExtra(Workout.UPDATE_TIME_STRING);
 				if (updateTime != "") {
 					//set this as updateText

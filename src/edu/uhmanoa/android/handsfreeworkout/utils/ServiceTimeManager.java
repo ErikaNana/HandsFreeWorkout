@@ -39,6 +39,7 @@ public class ServiceTimeManager {
 		for (long time: mTotalTime) {
 			totalTime += time;
 		}
+		Log.e("STM", "totalTime:  " + totalTime);
 		return totalTime;
 	}
 	
@@ -51,9 +52,9 @@ public class ServiceTimeManager {
 	/**Gets the formatted time based on the raw time*/
 	public static String getUpdateTimeFromRaw(long rawTime){
 		//get time in hours minutes seconds
-		int hours = (int) Math.floor(((rawTime/(60 * 60)) % 24));
-		int minutes = (int) Math.floor(((rawTime / 60) % 60));
-		int seconds = (int) Math.floor(rawTime % 60);
+		int hours = (int) ((rawTime/(60 * 60)) % 24);
+		int minutes = (int) ((rawTime / 60) % 60);
+		int seconds = (int) rawTime % 60;
 		
 		String time = "";
 		

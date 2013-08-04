@@ -32,25 +32,23 @@ public class CustomTimer extends Chronometer{
 		}
 		else {
 			if (workoutRunning) {
-/*				if (baseTime == 0) {
-					this.setBase(SystemClock.elapsedRealtime() + amountTimePassed);
-				}
-				//simulate continuous timing even if app is offline
-				else {
-					long timePassed = baseTime - SystemClock.elapsedRealtime();
-					this.setBase(SystemClock.elapsedRealtime() + timePassed);
-				}*/
 				this.setBase(SystemClock.elapsedRealtime() + amountTimePassed);
 				this.start();
 			}
 			if (workoutStopped) {
-/*				Log.w("CustomTimer", "in workout stopped");*/
 				this.setBase(SystemClock.elapsedRealtime() + amountTimePassed);			
 			}
 			if (mWorkoutPaused) {
-/*				Log.w("CustomTimer", "in workout paused");*/
 				this.setBase(SystemClock.elapsedRealtime() + amountTimePassed);
 			}
 		}
 	}
+	
+/*	@Override
+	public void stop() {
+		super.stop();
+		Log.e("CustomTimer", "Base time:  " + this.getBase());
+		Log.e("CustomTimer", "currentTime:  " + SystemClock.elapsedRealtime());
+		Log.e("CustomTimer", "actual time passed:  " + (this.getBase() - SystemClock.elapsedRealtime()));
+	}*/
 }
