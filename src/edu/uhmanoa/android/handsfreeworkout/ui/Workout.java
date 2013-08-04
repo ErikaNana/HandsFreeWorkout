@@ -12,7 +12,6 @@ import android.content.IntentFilter;
 import android.content.pm.PackageManager;
 import android.content.pm.ResolveInfo;
 import android.graphics.Color;
-import android.graphics.Typeface;
 import android.media.AudioManager;
 import android.os.Bundle;
 import android.os.Handler;
@@ -393,6 +392,7 @@ public class Workout extends Activity implements OnClickListener{
 			//send the base time
 			mUpdateIntent.putExtra(HandsFreeService.UpdateReceiver.CURRENT_BASE_TIME, mTimer.getBase());
 		}
+		Log.w("Workout", "time of action: " + mTimeOfAction);
 		mUpdateIntent.putExtra(UPDATE_ACTION, action);
 		mUpdateIntent.putExtra(HandsFreeService.UpdateReceiver.TIME_OF_ACTION, mTimeOfAction);
 		this.sendBroadcast(mUpdateIntent);

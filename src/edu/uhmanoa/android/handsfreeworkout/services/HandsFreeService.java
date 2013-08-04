@@ -98,9 +98,9 @@ public class HandsFreeService extends Service implements OnInitListener{
 	/**Command that was said*/
 	protected int command;
 	
-/*	//State the app is in 
-	protected static final boolean OFFLINE = true;
-	protected static final boolean ONLINE = false;*/
+	/**Accounts for if want update time that accounts for lag*/
+	protected static final boolean LAG_TIME = true;
+	protected static final boolean NO_LAG_TIME = false;
 	
 	/**Variables for TTS*/
 	protected  TextToSpeech mTTS;
@@ -299,7 +299,6 @@ public class HandsFreeService extends Service implements OnInitListener{
 				break;
 			}
 			case UPDATE:{
-				mTimeOfAction = SystemClock.elapsedRealtime();
 /*				if (mWorkoutRunning) {
 					mUpdateTime = ServiceTimeManager.getUpdateTimeFromRaw(mTimeManager.getUpdateTime());
 				}
@@ -477,9 +476,9 @@ public class HandsFreeService extends Service implements OnInitListener{
 		if (mSendCurrentState == null) {
 			mSendCurrentState = new Intent(Workout.ServiceReceiver.SET_CURRENT_STATE);
 		}
-		Log.w("HFS", "mWorkoutRunning:  " + mWorkoutRunning);
+/*		Log.w("HFS", "mWorkoutRunning:  " + mWorkoutRunning);
 		Log.w("HFS", "mWorkoutPaused:  " + mWorkoutPaused);
-		Log.w("HFS", "mWorkoutStopped:  " + mWorkoutStopped);
+		Log.w("HFS", "mWorkoutStopped:  " + mWorkoutStopped);*/
 		
 		mSendCurrentState.putExtra(UpdateReceiver.WORKOUT_RUNNING, mWorkoutRunning);
 		mSendCurrentState.putExtra(UpdateReceiver.WORKOUT_PAUSED, mWorkoutPaused);
@@ -536,8 +535,7 @@ public class HandsFreeService extends Service implements OnInitListener{
 
 				//get the update action and the update string
 				int action = intent.getIntExtra(Workout.UPDATE_ACTION, 0);
-/*				mTimeOfAction = intent.getLongExtra(TIME_OF_ACTION, 0);*/
-				mTimeOfAction = SystemClock.elapsedRealtime();
+				mTimeOfAction = intent.getLongExtra(TIME_OF_ACTION, 0);
 /*				String updateTime = intent.getStringExtra(Workout.UPDATE_TIME_STRING);
 				if (updateTime != "") {
 					//set this as updateText
@@ -594,35 +592,38 @@ public class HandsFreeService extends Service implements OnInitListener{
 		Log.w("HFS", "in getFeedback");
 		action = toDo;
 		stopListening();
-		if (mTTS == null) {
-			mTTS = new TextToSpeech(this,this);
-			mTTS.setOnUtteranceProgressListener(new UtteranceProgressListener() {
-
-				@Override
-				public void onStart(String arg0) {
-					//don't need
-				}
-
-				@Override
-				public void onError(String arg0) {
-				}
-				
-				@Override
-				public void onDone(String utteranceID) {
-					Log.e("AVFB", "YES!!!!");
-					Log.w("HFS", "stop:  " + mStop);
-					if (!mStop) {
-						mStop = false;
-						startListening();
-					}
-				}
-			});
+		//accounts for a restart
+		if (mTTS != null) {
+			destroyTTS();
 		}
+		mTTS = new TextToSpeech(this,this);
+		mTTS.setOnUtteranceProgressListener(new UtteranceProgressListener() {
+
+			@Override
+			public void onStart(String arg0) {
+				//don't need
+			}
+
+			@Override
+			public void onError(String arg0) {
+			}
+				
+			@Override
+			public void onDone(String utteranceID) {
+				Log.e("AVFB", "YES!!!!");
+				Log.w("HFS", "stop:  " + mStop);
+				if (!mStop) {
+					mStop = false;
+					startListening();
+				}
+			}
+		});
 	}
 	
 	/**Called after initialization of mTTS*/
 	@Override
 	public void onInit(int status) {
+		Log.w("HFS", "action:  " + action);
 		if (status == TextToSpeech.SUCCESS) {
 			mTTS.setLanguage(Locale.US);
 		}
@@ -658,7 +659,9 @@ public class HandsFreeService extends Service implements OnInitListener{
 				mTTS.speak("pausing workout", TextToSpeech.QUEUE_FLUSH, mReplies);
 				break;
 			}
-			case UPDATE_TIME:{	
+			case UPDATE_TIME:{
+				//want latest time as possible
+				mTimeOfAction = SystemClock.elapsedRealtime();
 				if (mWorkoutRunning) {
 					mUpdateTime = ServiceTimeManager.getUpdateTimeFromRaw(mTimeManager.getUpdateTime(mTimeOfAction));
 				}

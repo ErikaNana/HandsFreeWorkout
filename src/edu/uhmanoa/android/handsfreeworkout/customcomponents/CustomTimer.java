@@ -32,6 +32,7 @@ public class CustomTimer extends Chronometer{
 		}
 		else {
 			if (workoutRunning) {
+				//amountTimePassed = base - currentTime
 				this.setBase(SystemClock.elapsedRealtime() + amountTimePassed);
 				this.start();
 			}

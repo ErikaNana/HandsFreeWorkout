@@ -90,6 +90,10 @@ public class ServiceTimeManager {
 		//need to be more accurate, current time needs to be time button was clicked or 
 		//when command was said
 		long timePassed = getParsedTime((timeOfAction - mBaseTime));
+		Log.w("STM", "get time passed");
+		Log.w("STM", "time of Action:  " + timeOfAction);
+		Log.w("STM", "baseTime:  " + mBaseTime);
+		Log.w("STM", "timepassed = " + timePassed);
 		return timePassed;
 	}
 	/**Clears the mTotalTime ArrayList*/
@@ -97,6 +101,7 @@ public class ServiceTimeManager {
 		mTotalTime.clear();
 	}
 	
+	/**Gets all of the time that has passed up to the timeOfAction*/
 	public long getUpdateTime(long timeOfAction) {
 		long timePassedRecent = getTimePassed(timeOfAction);
 		long totalTimeSoFar = getTotalTime();
