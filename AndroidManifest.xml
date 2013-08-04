@@ -19,11 +19,6 @@
             android:name = "edu.uhmanoa.android.handsfreeworkout.ui.Workout">
         </activity>
         <activity
-            android:name = "edu.uhmanoa.android.handsfreeworkout.customcomponents.DialogActivity"
-            android:theme="@android:style/Theme.Dialog" 
-            android:excludeFromRecents="true">
-        </activity>
-        <activity
             android:name="edu.uhmanoa.android.handsfreeworkout.ui.Welcome" >
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />

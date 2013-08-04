@@ -3,13 +3,16 @@ package edu.uhmanoa.android.handsfreeworkout.ui;
 import java.util.List;
 
 import android.app.Activity;
+import android.app.AlertDialog;
 import android.content.BroadcastReceiver;
 import android.content.Context;
+import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.pm.PackageManager;
 import android.content.pm.ResolveInfo;
 import android.graphics.Color;
+import android.graphics.Typeface;
 import android.media.AudioManager;
 import android.os.Bundle;
 import android.os.Handler;
@@ -25,7 +28,6 @@ import android.widget.TextView;
 import edu.uhmanoa.android.handsfreeworkout.R;
 import edu.uhmanoa.android.handsfreeworkout.customcomponents.CustomButton;
 import edu.uhmanoa.android.handsfreeworkout.customcomponents.CustomTimer;
-import edu.uhmanoa.android.handsfreeworkout.customcomponents.DialogActivity;
 import edu.uhmanoa.android.handsfreeworkout.services.HandsFreeService;
 import edu.uhmanoa.android.handsfreeworkout.utils.Utils;
 
@@ -534,22 +536,35 @@ public class Workout extends Activity implements OnClickListener{
 	
 	/***********************************DIALOG STUFF *********************************/
 	
-	public static final int LEAVE_APP = 7;
-	
 	@Override
 	public void onBackPressed() {
-		Intent intent = new Intent(this, DialogActivity.class);
-		startActivityForResult(intent, LEAVE_APP);
+		buildDialog().show();
 	}
-
-	//callback from dialog
-	@Override
-	protected void onActivityResult(int requestCode, int resultCode, Intent data) {
-		super.onActivityResult(requestCode, resultCode, data);
-		if (requestCode == LEAVE_APP) {
-			if (resultCode == RESULT_OK) {
+	
+	protected AlertDialog buildDialog() {
+		AlertDialog.Builder builder = new AlertDialog.Builder(this, AlertDialog.THEME_DEVICE_DEFAULT_DARK)
+				.setMessage(R.string.exitText)
+				.setTitle(R.string.app_name);
+		builder.setPositiveButton(R.string.dialogPositive, new DialogInterface.OnClickListener() {
+			
+			@Override
+			public void onClick(DialogInterface dialog, int which) {
 				finish();
 			}
-		}
+		});
+		builder.setNegativeButton(R.string.dialogNegative, new DialogInterface.OnClickListener() {
+			
+			@Override
+			public void onClick(DialogInterface dialog, int which) {
+				// TODO Auto-generated method stub
+				return;
+			}
+		});
+		AlertDialog dialog = builder.create();
+		//so dialog doesn't get closed when touched outside of it
+		dialog.setCanceledOnTouchOutside(false);
+		//so dialog doesn't get dismissed by back button
+		dialog.setCancelable(false);
+		return dialog;
 	}
 }

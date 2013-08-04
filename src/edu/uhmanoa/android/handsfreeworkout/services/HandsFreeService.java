@@ -594,28 +594,30 @@ public class HandsFreeService extends Service implements OnInitListener{
 		Log.w("HFS", "in getFeedback");
 		action = toDo;
 		stopListening();
-		mTTS = new TextToSpeech(this,this);
-		mTTS.setOnUtteranceProgressListener(new UtteranceProgressListener() {
+		if (mTTS == null) {
+			mTTS = new TextToSpeech(this,this);
+			mTTS.setOnUtteranceProgressListener(new UtteranceProgressListener() {
 
-			@Override
-			public void onStart(String arg0) {
-				//don't need
-			}
-
-			@Override
-			public void onError(String arg0) {
-			}
-			
-			@Override
-			public void onDone(String utteranceID) {
-				Log.e("AVFB", "YES!!!!");
-				Log.w("HFS", "stop:  " + mStop);
-				if (!mStop) {
-					mStop = false;
-					startListening();
+				@Override
+				public void onStart(String arg0) {
+					//don't need
 				}
-			}
-		});
+
+				@Override
+				public void onError(String arg0) {
+				}
+				
+				@Override
+				public void onDone(String utteranceID) {
+					Log.e("AVFB", "YES!!!!");
+					Log.w("HFS", "stop:  " + mStop);
+					if (!mStop) {
+						mStop = false;
+						startListening();
+					}
+				}
+			});
+		}
 	}
 	
 	/**Called after initialization of mTTS*/
