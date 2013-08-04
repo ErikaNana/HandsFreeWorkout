@@ -58,7 +58,7 @@ public class HandsFreeService extends Service implements OnInitListener{
 	protected boolean mListening;
 
 	/* Value to determine what needs to be said */
-	protected int mResponse;
+/*	protected int mResponse;*/
 	
 	/** The time frequency at which check if speech recognizer is still alive */
 	protected static final long UPDATE_FREQUENCY =4000L;
@@ -66,8 +66,8 @@ public class HandsFreeService extends Service implements OnInitListener{
 	/** The time frequency at which check the max amplitude of the recording */
 	protected static final long CHECK_FREQUENCY = 350L; 
 	
-	/**Name of the current application state to be passed to Workout*/
-	public static final String APPLICATION_STATE = "application state";
+/*	*//**Name of the current application state to be passed to Workout*//*
+	public static final String APPLICATION_STATE = "application state";*/
 	
 	/**Possible application states*/
 	public static final int STOP = 1;
@@ -98,9 +98,9 @@ public class HandsFreeService extends Service implements OnInitListener{
 	/**Command that was said*/
 	protected int command;
 	
-	//State the app is in 
+/*	//State the app is in 
 	protected static final boolean OFFLINE = true;
-	protected static final boolean ONLINE = false;
+	protected static final boolean ONLINE = false;*/
 	
 	/**Variables for TTS*/
 	protected  TextToSpeech mTTS;
@@ -108,6 +108,9 @@ public class HandsFreeService extends Service implements OnInitListener{
 	protected static HashMap <String, String> mReplies = new HashMap<String, String>();
 	protected static final String STRING = "just need one";
 	protected int action;
+	
+	/**Keeps track of when an action was actually committed*/
+	protected long mTimeOfAction;
 	
 	@Override
 	public IBinder onBind(Intent arg0) {
@@ -186,14 +189,20 @@ public class HandsFreeService extends Service implements OnInitListener{
 					command = UPDATE;
 				}
 				if (command != COMMAND_NOT_RECOGNIZED_RESULT) {
-					if (!mSleeping) {
+					updateTime();
+					///////////////////////////////////////////
+					////	FIGURE OUT WHAT TO DO HERE	   ////
+					///////////////////////////////////////////
+					
+					
+/*					if (!mSleeping) {
 						//probably don't need anymore because the state is being held
 						//in HFS.  
 						announceGetCurrentState();
 					}
 					if (mSleeping) {
 						updateBasedOnUI(OFFLINE);
-					}
+					}*/
 				}
 				else {	
 					getFeedback(COMMAND_NOT_RECOGNIZED_RESULT);
@@ -230,26 +239,33 @@ public class HandsFreeService extends Service implements OnInitListener{
 		mSpeechRec.startListening(mRecognizerIntent);
 	}
 	/**Simulates accessing the UI.  Responds and updates state variables and time accordingly*/
-	private void updateBasedOnUI(boolean offline) {		
+	private void updateTime() {		
 		switch (command) {
 		//app is not listening if in mWorkoutStopped state
 			case START:{
+				mTimeOfAction = SystemClock.elapsedRealtime();
 				if (mWorkoutRunning) {
 					getFeedback(START_BUTTON_CLICK);
 				}
 				if (mWorkoutPaused) { //resume after pause
 					getFeedback(START_BUTTON_RESUME_CLICK);
-					if (offline) {
+					mTimeManager.setBaseTime(SystemClock.elapsedRealtime());
+/*					if (offline) {
 						mTimeManager.setBaseTime(SystemClock.elapsedRealtime());
-					}
-					else{
+					}*/
+/*					else{
 						announceGetUpdate(START);
-					}
+					}*/
 				}
 				break;
 			}
 			case STOP:{
-				if (offline) {
+				mTimeOfAction = SystemClock.elapsedRealtime();
+/*				mTimeManager.addSectionOfTime();*/
+/*				mUpdateTime = ServiceTimeManager.getTotalTimeAndFormat();*/
+				getFeedback(STOP_BUTTON_CLICK);
+/*				mTimeManager.resetTotalTime();*/
+/*				if (offline) {
 					if (mWorkoutRunning) { //stopping the workout
 						mTimeManager.addSectionOfTime();
 					}
@@ -257,22 +273,24 @@ public class HandsFreeService extends Service implements OnInitListener{
 					mUpdateTime = ServiceTimeManager.getTotalTimeAndFormat();
 					getFeedback(STOP_BUTTON_CLICK);
 					mTimeManager.resetTotalTime();
-				}
+				}*/
 				
-				else{
+/*				else{
 					announceGetUpdate(STOP);
-				}
+				}*/
 				break;
 			}
 			case PAUSE:{
+				mTimeOfAction = SystemClock.elapsedRealtime();
 				if (mWorkoutRunning) { //pausing the workout
 					getFeedback(PAUSE_BUTTON_CLICK);
-					if (offline) {
+/*					mTimeManager.addSectionOfTime();*/
+/*					if (offline) {
 						mTimeManager.addSectionOfTime();
-					}
-					else {
+					}*/
+/*					else {
 						announceGetUpdate(PAUSE);
-					}
+					}*/
 					break;
 				}
 				if (mWorkoutPaused) {
@@ -281,19 +299,27 @@ public class HandsFreeService extends Service implements OnInitListener{
 				break;
 			}
 			case UPDATE:{
+				mTimeOfAction = SystemClock.elapsedRealtime();
+/*				if (mWorkoutRunning) {
+					mUpdateTime = ServiceTimeManager.getUpdateTimeFromRaw(mTimeManager.getUpdateTime());
+				}
+				else {
+					mUpdateTime = ServiceTimeManager.getTotalTimeAndFormat();
+				}*/
 				//get the total time passed and respond
-				if (offline) {
+				
+/*				if (offline) {
 					if (mWorkoutRunning) {
 						mUpdateTime = ServiceTimeManager.getUpdateTimeFromRaw(mTimeManager.getUpdateTime());
 					}
 					else {
 						mUpdateTime = ServiceTimeManager.getTotalTimeAndFormat();
-					}
+					}*/
+					
 					getFeedback(UPDATE_TIME);
-				}
-				else {
+/*				else {
 					announceGetUpdate(UPDATE);
-				}
+				}*/
 				break;
 			}
 			default:{
@@ -313,7 +339,6 @@ public class HandsFreeService extends Service implements OnInitListener{
 
 		@Override
 		public void run() {
-			mCounter +=1;
 			Log.w("HFS", "counter:  " + mCounter);
 			if (mSpeechRecAlive) {
 				Log.w("HFS", "speechRec alive");
@@ -332,16 +357,17 @@ public class HandsFreeService extends Service implements OnInitListener{
 				startVoiceRec();
 			}
 			
-			if (mCounter >= 4) {
+			if (mCounter >= 3) {
 				stopAndDestroyVoiceRec();
 				Log.w("HFS", "SILENCE");
 				getFeedback(NOTHING_SAID);
 				mCounter = 0;
 				return;
 			}
-			if (mCounter < 4) {
+			if (mCounter < 3) {
 				mHandler.postDelayed(checkSpeechRec, UPDATE_FREQUENCY);			
 			}
+			mCounter +=1;
 		}
 	};
 
@@ -446,28 +472,6 @@ public class HandsFreeService extends Service implements OnInitListener{
 		this.unregisterReceiver(mReceiver);
 	}
 	
-	/**Updates the UI and gets current time in app for updates*/
-	protected void announceGetUpdate(int action) {
-		if (mGetUpdateIntent == null) {
-			mGetUpdateIntent = new Intent(Workout.ServiceReceiver.UPDATE);
-			mGetUpdateIntent.addCategory(Intent.CATEGORY_DEFAULT);
-		}
-		mGetUpdateIntent.putExtra(APPLICATION_STATE, action);
-		this.sendBroadcast(mGetUpdateIntent);
-		Log.w("HFS", "announcing update");
-	}
-	
-	/**Sends a broadcast to get the current state from Workout.  Only called if command is
-	 * recognized in VoiceRec */
-	protected void announceGetCurrentState() {
-		Log.w("HFS", "sleeping:  " + mSleeping);
-		if (mGetCurrentStateIntent == null) {
-			mGetCurrentStateIntent = new Intent(Workout.ServiceReceiver.GET_CURRENT_STATE);			
-		}
-		this.sendBroadcast(mGetCurrentStateIntent);			
-		Log.w("HFS", "announcing get current state");
-	}
-	
 	protected void sendCurrentState() {
 		Log.w("HFS", "sending the current state");
 		if (mSendCurrentState == null) {
@@ -494,20 +498,24 @@ public class HandsFreeService extends Service implements OnInitListener{
 		public static final String WORKOUT_PAUSED = "workout paused";
 		public static final String WORKOUT_STOPPED = "Workout stopped";
 		public static final String CURRENT_BASE_TIME = "current base time";
-		public static final String INITIAL_CREATE = "initial create";
+
 		
 		/**Denotes listening state of service*/
 		public static final String START_OR_NOT = "start or not";
 		
+		/**Actual time when action is committed*/
+		public static final String TIME_OF_ACTION = "time of action";
+		
 		@Override
 		public void onReceive(Context context, Intent intent) {
 			String type = intent.getAction();
-			/**Sent in onPause of Workout*/
+			/**Sent in onPause of Workout.  Needed keep the app persistent*/
 			if (type.equals(SLEEPING)) {
 				//manage the time
-				if (intent.getLongExtra(CURRENT_BASE_TIME,0) != 0){
+/*				if (intent.getLongExtra(CURRENT_BASE_TIME,0) != 0){
+					//this only happens on initial create
 					mTimeManager = new ServiceTimeManager(intent.getLongExtra(CURRENT_BASE_TIME, 0));
-				}
+				}*/
 				
 				mSleeping = intent.getBooleanExtra(Workout.APP_SLEEPING, false);
 				Log.e("HFS", "APP IS SLEEPING:  " + mSleeping);
@@ -516,45 +524,39 @@ public class HandsFreeService extends Service implements OnInitListener{
 					//run service as foreground so less likely to get killed
 					startForeground(1234, buildNotification(context));
 				}
-				if (!mSleeping) {
-					//onResume
-					//if not sleeping, accounts for initial false false false case
-					if (mWorkoutRunning || mWorkoutPaused || mWorkoutStopped) {
-						Log.w("HFS", "sending current state in onReceive");
-						sendCurrentState();	
-					}
-					mTimeManager = null;
+				if (!mSleeping) { //onResume
+					sendCurrentState();	
 					//stop running in the foreground
 					stopForeground(true);
 				}
 			}
-			/**If a button is clicked and needs feedback*/
+			/**Received when a button is clicked*/
 			if (type.equals(GET_ACTION)) {
 				Log.w("HFS", "broadcast received: " + intent.getAction());
 
 				//get the update action and the update string
 				int action = intent.getIntExtra(Workout.UPDATE_ACTION, 0);
-				String updateTime = intent.getStringExtra(Workout.UPDATE_TIME_STRING);
+				mTimeOfAction = intent.getLongExtra(TIME_OF_ACTION, 0);
+/*				String updateTime = intent.getStringExtra(Workout.UPDATE_TIME_STRING);
 				if (updateTime != "") {
 					//set this as updateText
 					mUpdateTime = updateTime;
+				}*/
+				//have to do it here so can get the base time out of the intent
+				if (action == INITIAL_CREATE) {
+					//like in a restart of a workout
+					if (mTimeManager == null) {
+						//make a time manager with the base time from the clock created in Workout
+						mTimeManager = new ServiceTimeManager(intent.getLongExtra(CURRENT_BASE_TIME, 0));
+					}
 				}
 				getFeedback(action);
 
 			}
-			/**This only happens when a command is recognized in VoiceRec*/
-			if (type.equals(RECEIVE_CURRENT_STATE)) {
-				Log.w("HFS", "receiving the current state");
-				mWorkoutRunning = intent.getBooleanExtra(WORKOUT_RUNNING, false);
-				mWorkoutPaused = intent.getBooleanExtra(WORKOUT_PAUSED, false);
-				mWorkoutStopped = intent.getBooleanExtra(WORKOUT_STOPPED, false);
-				Log.w("HFS","workout running:  " + mWorkoutRunning);
-				Log.w("HFS","workout paused:  " + mWorkoutPaused);
-				Log.w("HFS","workout stopped:  " + mWorkoutStopped);
-				updateBasedOnUI(ONLINE);
-			}
 		}
 	}
+	
+	/**Sets the state variables then sends the current state*/
 	public void setStateVariables (boolean running, boolean pause, boolean stop) {
 		Log.w("HFS", "setting state variables");
 		if (running) {
@@ -575,15 +577,16 @@ public class HandsFreeService extends Service implements OnInitListener{
 		if (!stop) {
 			mWorkoutStopped = false;
 		}
-		Log.w("HFS", "mWorkoutRunning:  " + mWorkoutRunning);
+/*		Log.w("HFS", "mWorkoutRunning:  " + mWorkoutRunning);
 		Log.w("HFS", "mWorkoutPaused:  " + mWorkoutPaused);
-		Log.w("HFS", "mWorkoutStopped:  " + mWorkoutStopped);
+		Log.w("HFS", "mWorkoutStopped:  " + mWorkoutStopped);*/
 		if (!mSleeping) {
 			Log.w("HFS", "sending current state in setStateVariables");
 			sendCurrentState();
 		}
 	}
 	
+	/**Responds to the action.  Linked with setStateVariables and sendCurrentState*/
 	protected void getFeedback(int toDo) {
 		/*initialize TTS (don't need to check if it is installed because for OS 4.1 and up
 		it is already included.  But maybe do checks here for older versions later */
@@ -614,6 +617,7 @@ public class HandsFreeService extends Service implements OnInitListener{
 		});
 	}
 	
+	/**Called after initialization of mTTS*/
 	@Override
 	public void onInit(int status) {
 		if (status == TextToSpeech.SUCCESS) {
@@ -624,25 +628,40 @@ public class HandsFreeService extends Service implements OnInitListener{
 			getFeedback(action);
 		}
 		mReplies.put(TextToSpeech.Engine.KEY_PARAM_UTTERANCE_ID, STRING);
-		
 		switch(action) {
 			case START_BUTTON_CLICK:{
 				mTTS.speak("workout is in progress", TextToSpeech.QUEUE_FLUSH, mReplies);
 				break;
 			}
 			case STOP_BUTTON_CLICK:{
-				mStop = true;
 				//be careful with pause and stop true
+				mStop = true;
+				if (mWorkoutRunning) {
+					mTimeManager.addSectionOfTime(mTimeOfAction);
+				}
+				mUpdateTime = ServiceTimeManager.getTotalTimeAndFormat();
+				//reset
+				mTimeManager.resetTotalTime();
+				mTimeManager = null;
 				setStateVariables(false, true, true);
 				mTTS.speak("stopping workout.  Workout duration:  "+ mUpdateTime, TextToSpeech.QUEUE_FLUSH, mReplies);
 				break;
 			}
 			case PAUSE_BUTTON_CLICK:{
+				if (mWorkoutRunning) {
+					mTimeManager.addSectionOfTime(mTimeOfAction);
+				}
 				setStateVariables(false, true, false);
 				mTTS.speak("pausing workout", TextToSpeech.QUEUE_FLUSH, mReplies);
 				break;
 			}
 			case UPDATE_TIME:{	
+				if (mWorkoutRunning) {
+					mUpdateTime = ServiceTimeManager.getUpdateTimeFromRaw(mTimeManager.getUpdateTime(mTimeOfAction));
+				}
+				else {
+					mUpdateTime = ServiceTimeManager.getTotalTimeAndFormat();
+				}
 				mTTS.speak(mUpdateTime + "have elapsed", TextToSpeech.QUEUE_FLUSH, mReplies);
 				break;
 			}
@@ -655,6 +674,9 @@ public class HandsFreeService extends Service implements OnInitListener{
 				break;	
 			}
 			case START_BUTTON_RESUME_CLICK:{
+				if (mWorkoutPaused) {
+					mTimeManager.setBaseTime(SystemClock.elapsedRealtime());
+				}
 				setStateVariables(true, false, false);
 				mTTS.speak("continuing workout", TextToSpeech.QUEUE_FLUSH, mReplies);
 				break;	
@@ -672,6 +694,8 @@ public class HandsFreeService extends Service implements OnInitListener{
 				break;	
 			}
 		}
+		//reset
+		mTimeOfAction = 0;
 	}
 	/** Turn off and destroy TTS */
 	protected void destroyTTS() {
@@ -693,7 +717,6 @@ public class HandsFreeService extends Service implements OnInitListener{
 		notificationBuilder.setContentIntent(pendingIntent);
 		//make the notification disappear from the notification area when it's pressed
 		notificationBuilder.setAutoCancel(true);
-		//get a reference to NotificationManager
 		return notificationBuilder.build();
 	}
 	

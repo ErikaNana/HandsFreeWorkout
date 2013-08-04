@@ -68,7 +68,7 @@ public class Utils {
 	} 
 	
 	/**Get the correct update string */
-	public static String getUpdate(String inputTime, boolean getLagTime) {
+	public static String getUpdate(String inputTime) {
 		int hours = 0;
 		int minutes;
 		int seconds = 0;
@@ -86,13 +86,10 @@ public class Utils {
 			if (time.length > 2) {
 				hours = Integer.valueOf(time[0]);
 				minutes = Integer.valueOf(time[1]);
-				//account for lag
-				if (getLagTime) {
-					seconds = Integer.valueOf(time[2]) + 1;
-					Log.w("Utils", "getting lag time");
-				}
-				if (!getLagTime) {
-					seconds = Integer.valueOf(time[2]);
+				seconds = Integer.valueOf(time[2]);
+				
+				if (seconds < 0) {
+					seconds = 0;
 				}
 				if (hours == 1) {
 					correctHour = " hour, ";
@@ -100,13 +97,9 @@ public class Utils {
 			}
 			else {
 				minutes = Integer.valueOf(time[0]);
-				//account for lag
-				if (getLagTime) {
-					seconds = Integer.valueOf(time[1]) + 1;
-					Log.w("Utils", "getting lag time");
-				}
-				if (!getLagTime) {
-					seconds = Integer.valueOf(time[1]);
+				seconds = Integer.valueOf(time[1]);
+				if (seconds < 0) {
+					seconds = 0;
 				}
 			}
 	

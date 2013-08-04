@@ -2,7 +2,6 @@ package edu.uhmanoa.android.handsfreeworkout.utils;
 
 import java.util.ArrayList;
 
-import android.os.SystemClock;
 import android.util.Log;
 
 /**Manages the time when Workout is in sleeping mode*/
@@ -14,6 +13,7 @@ public class ServiceTimeManager {
 	/**Create the ServiceTimeManager with a starting base time*/
 	public ServiceTimeManager(long baseTime) {
 		//initialize baseTime
+		Log.w("STM", "created new time manager with baseTime: " + baseTime);
 		mBaseTime = baseTime;
 	}
 	
@@ -23,8 +23,8 @@ public class ServiceTimeManager {
 	}
 	
 	/**Add a section of time to the total time ArrayList*/
-	public void addSectionOfTime() {
-		long timePassed = getTimePassed();
+	public void addSectionOfTime(long timeOfAction) {
+		long timePassed = getTimePassed(timeOfAction);
 		mTotalTime.add(timePassed);
 	}
 	
@@ -51,9 +51,9 @@ public class ServiceTimeManager {
 	/**Gets the formatted time based on the raw time*/
 	public static String getUpdateTimeFromRaw(long rawTime){
 		//get time in hours minutes seconds
-		int hours = (int) ((rawTime/(60 * 60)) % 24);
-		int minutes = (int) ((rawTime / 60) % 60);
-		int seconds = (int) rawTime % 60;
+		int hours = (int) Math.floor(((rawTime/(60 * 60)) % 24));
+		int minutes = (int) Math.floor(((rawTime / 60) % 60));
+		int seconds = (int) Math.floor(rawTime % 60);
 		
 		String time = "";
 		
@@ -79,13 +79,16 @@ public class ServiceTimeManager {
 			time = correctHours + ":" + correctMinutes + ":" + correctSeconds;
 		}
 		Log.w("UTILS", "(getUpdateFromRaw) TIME:  " + time);
-		return Utils.getUpdate(time, true);
+		/*return Utils.getUpdate(time, true);*/
+		return Utils.getUpdate(time);
 	}
 	
-	/**Gets how much time has passed between the base and the current time, parses it 
-	 * and adds it to the mTotalTime ArrayList*/
-	public long getTimePassed() {
-		long timePassed = getParsedTime((SystemClock.elapsedRealtime() - mBaseTime));
+	/**Gets how much time has passed between the base and the time the action was committed, 
+	 * parses it and adds it to the mTotalTime ArrayList.*/
+	public long getTimePassed(long timeOfAction) {
+		//need to be more accurate, current time needs to be time button was clicked or 
+		//when command was said
+		long timePassed = getParsedTime((timeOfAction - mBaseTime));
 		return timePassed;
 	}
 	/**Clears the mTotalTime ArrayList*/
@@ -93,8 +96,8 @@ public class ServiceTimeManager {
 		mTotalTime.clear();
 	}
 	
-	public long getUpdateTime() {
-		long timePassedRecent = getTimePassed();
+	public long getUpdateTime(long timeOfAction) {
+		long timePassedRecent = getTimePassed(timeOfAction);
 		long totalTimeSoFar = getTotalTime();
 		long totalTime = totalTimeSoFar + timePassedRecent;
 		return totalTime;

@@ -32,7 +32,7 @@ public class Welcome extends Activity implements View.OnClickListener{
 	public void onClick(View view) {
 		//go to the main workout activity
 		if (view.getId() == R.id.speakButton) {
-			announceInitialTime();
+/*			announceInitialTime();*/
 			Intent intent = new Intent(this, Workout.class);
 			this.startActivity(intent);
 			finish();
