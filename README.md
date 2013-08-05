@@ -14,5 +14,7 @@ Give user option to store the workout and store it. <img src="http://www.clker.c
 Create a separate Activity where the user can view their saved workouts. <img src="http://www.clker.com/cliparts/7/d/b/0/11954453151817762013molumen_red_square_error_warning_icon.svg.med.png" width = "10" height = "10"/>
 ####Stage 7
 Implement a custom typeface for the whole application.  <img src="http://www.wiredsystems.com/blog/wp-content/uploads/2012/05/checkmark.jpg" width = "10" height = "10"/>
+####Stage 8
+Allow the app to function even when phone is asleep.  <img src="http://www.wiredsystems.com/blog/wp-content/uploads/2012/05/checkmark.jpg" width = "10" height = "10"/>
 <del>NOTE:  Development on this project has discontinued, as there is no workaround for muting the beep sound that is caused by the creation of the SpeechRecognizer object. </del>
 ###THERE IS HOPE
