@@ -191,7 +191,7 @@ public class Utils {
 	}	
 	/**Set the layout font */
 	public static void setLayoutFont(Context context, Activity activity, int whichLayout) {
-		Typeface font = Typeface.createFromAsset(context.getAssets(), "fonts/Edmondsans-Bold.otf");
+		Typeface font = Typeface.createFromAsset(context.getAssets(), "fonts/Cubano-Regular.otf");
 		ViewGroup layout = null;
 		
 		if (whichLayout == WELCOME) {

@@ -57,17 +57,11 @@ public class HandsFreeService extends Service implements OnInitListener{
 	protected boolean mStop;
 	protected boolean mListening;
 
-	/* Value to determine what needs to be said */
-/*	protected int mResponse;*/
-	
 	/** The time frequency at which check if speech recognizer is still alive */
 	protected static final long UPDATE_FREQUENCY =4000L;
 	
 	/** The time frequency at which check the max amplitude of the recording */
 	protected static final long CHECK_FREQUENCY = 350L; 
-	
-/*	*//**Name of the current application state to be passed to Workout*//*
-	public static final String APPLICATION_STATE = "application state";*/
 	
 	/**Possible application states*/
 	public static final int STOP = 1;
@@ -98,13 +92,8 @@ public class HandsFreeService extends Service implements OnInitListener{
 	/**Command that was said*/
 	protected int command;
 	
-	/**Accounts for if want update time that accounts for lag*/
-	protected static final boolean LAG_TIME = true;
-	protected static final boolean NO_LAG_TIME = false;
-	
 	/**Variables for TTS*/
 	protected  TextToSpeech mTTS;
-	protected static Context mContext;
 	protected static HashMap <String, String> mReplies = new HashMap<String, String>();
 	protected static final String STRING = "just need one";
 	protected int action;
@@ -133,7 +122,6 @@ public class HandsFreeService extends Service implements OnInitListener{
 		
 		mSpeechRecListen = new RecognitionListener() {
 
-			/** Methods to override android.speech */
 			@Override
 			public void onBeginningOfSpeech() {
 				mSpeechRecAlive = true;
@@ -153,12 +141,10 @@ public class HandsFreeService extends Service implements OnInitListener{
 			}
 			@Override
 			public void onEvent(int arg0, Bundle arg1) {
-				//don't need
 			}
 
 			@Override
 			public void onPartialResults(Bundle arg0) {
-				//don't need
 			}
 
 			@Override
@@ -190,9 +176,6 @@ public class HandsFreeService extends Service implements OnInitListener{
 				}
 				if (command != COMMAND_NOT_RECOGNIZED_RESULT) {
 					updateTime();
-					///////////////////////////////////////////
-					////	FIGURE OUT WHAT TO DO HERE	   ////
-					///////////////////////////////////////////
 				}
 				else {	
 					getFeedback(COMMAND_NOT_RECOGNIZED_RESULT);
@@ -214,8 +197,6 @@ public class HandsFreeService extends Service implements OnInitListener{
 
 	/* Start voice recognition */
 	public void startVoiceRec() {
-		//starting new stage
-		stopListening();
 		//for persistence
 		Log.w("HFS","Starting voice rec");
 		mSpeechRec = SpeechRecognizer.createSpeechRecognizer(this);
@@ -280,6 +261,7 @@ public class HandsFreeService extends Service implements OnInitListener{
 
 		@Override
 		public void run() {
+			mCounter +=1;
 			Log.w("HFS", "counter:  " + mCounter);
 			if (mSpeechRecAlive) {
 				Log.w("HFS", "speechRec alive");
@@ -308,7 +290,6 @@ public class HandsFreeService extends Service implements OnInitListener{
 			if (mCounter < 3) {
 				mHandler.postDelayed(checkSpeechRec, UPDATE_FREQUENCY);			
 			}
-			mCounter +=1;
 		}
 	};
 
@@ -339,6 +320,8 @@ public class HandsFreeService extends Service implements OnInitListener{
 				if (difference > 0) {
 					Log.e("HFS", "spoke at volume:  " + maxAmp);
 					//launch the speech recognizer and stop listening
+					//starting new stage
+					stopListening();
 					startVoiceRec();
 					checkSpeechRec.run();
 					return;
@@ -418,9 +401,9 @@ public class HandsFreeService extends Service implements OnInitListener{
 		if (mSendCurrentState == null) {
 			mSendCurrentState = new Intent(Workout.ServiceReceiver.SET_CURRENT_STATE);
 		}
-		Log.w("HFS", "mWorkoutRunning:  " + mWorkoutRunning);
+/*		Log.w("HFS", "mWorkoutRunning:  " + mWorkoutRunning);
 		Log.w("HFS", "mWorkoutPaused:  " + mWorkoutPaused);
-		Log.w("HFS", "mWorkoutStopped:  " + mWorkoutStopped);
+		Log.w("HFS", "mWorkoutStopped:  " + mWorkoutStopped);*/
 		
 		mSendCurrentState.putExtra(UpdateReceiver.WORKOUT_RUNNING, mWorkoutRunning);
 		mSendCurrentState.putExtra(UpdateReceiver.WORKOUT_PAUSED, mWorkoutPaused);
@@ -459,7 +442,7 @@ public class HandsFreeService extends Service implements OnInitListener{
 			/**Sent in onPause of Workout.  Needed keep the app persistent*/
 			if (type.equals(SLEEPING)) {				
 				mSleeping = intent.getBooleanExtra(Workout.APP_SLEEPING, false);
-				Log.e("HFS", "APP IS SLEEPING:  " + mSleeping);
+				Log.w("HFS", "APP IS SLEEPING:  " + mSleeping);
 				//update variables if sleeping
 				if (mSleeping) { //onPause
 					//run service as foreground so less likely to get killed
@@ -548,7 +531,7 @@ public class HandsFreeService extends Service implements OnInitListener{
 				
 			@Override
 			public void onDone(String utteranceID) {
-				Log.e("AVFB", "YES!!!!");
+				Log.w("HFS", "YES!!!!");
 				Log.w("HFS", "stop:  " + mStop);
 				if (!mStop) {
 					mStop = false;

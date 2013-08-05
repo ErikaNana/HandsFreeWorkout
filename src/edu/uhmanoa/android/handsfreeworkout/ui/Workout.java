@@ -14,7 +14,6 @@ import android.content.pm.ResolveInfo;
 import android.graphics.Color;
 import android.media.AudioManager;
 import android.os.Bundle;
-import android.os.Handler;
 import android.os.SystemClock;
 import android.speech.RecognizerIntent;
 import android.util.Log;
@@ -38,9 +37,10 @@ public class Workout extends Activity implements OnClickListener{
 	protected TextView mWelcomeMessage;
 	protected TextView mCommandText;
 	protected CustomTimer mTimer;
+	protected ServiceReceiver mReceiver;
+	
 	/**App representation of the time in the timer*/
 	protected TextView mDisplayClock;
-	protected ServiceReceiver mReceiver;
 	
 	protected Intent mHandsFreeIntent;
 	protected Intent mCurrentStateIntent;
@@ -163,15 +163,14 @@ public class Workout extends Activity implements OnClickListener{
 			//make it false so when return after announceAction, doens't make a new clock
 			mInitialCreate = false;
 			announceAction(HandsFreeService.INITIAL_CREATE);
-
-			flashText("Begin");
+			mCommandText.setText("Begin");
 			//for smoother transition of the buttons
 			setStateVariables(true, false, false);
 			setButtons();
 			return;
 		}
 		if (mWorkoutPaused) {
-			flashText("Resume");
+			mCommandText.setText("Resume");
 			announceAction(HandsFreeService.START_BUTTON_RESUME_CLICK);	
 			return;
 		}
@@ -213,7 +212,6 @@ public class Workout extends Activity implements OnClickListener{
 		}
 
 		String time = (String) mTimer.getText();
-/*		mTimerText = time;*/
 		if (!time.equals("")) {
 			switch(mode) {
 				case HIPSTER:{				
@@ -387,6 +385,7 @@ public class Workout extends Activity implements OnClickListener{
 				if (!mInitialCreate) {
 					if (mWorkoutRunning) {
 						mStartButton.setText("Resume");
+						mCommandText.setText("");
 					}
 					if (mWorkoutPaused) {
 						mCommandText.setText("Pause");
@@ -471,19 +470,6 @@ public class Workout extends Activity implements OnClickListener{
 		}
 	}
 
-	/**Flash the command text for a second*/
-	public void flashText(String command) {
-		mCommandText.setText(command);
-		Handler handler = new Handler();
-		handler.postDelayed(new Runnable() {
-
-			@Override
-			public void run() {
-				mCommandText.setText("");
-			}
-		}, 1000L);
-	}
-	
 	/***********************************DIALOG STUFF *********************************/
 	
 	@Override

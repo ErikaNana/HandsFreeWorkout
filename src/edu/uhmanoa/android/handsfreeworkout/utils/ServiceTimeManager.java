@@ -40,7 +40,7 @@ public class ServiceTimeManager {
 		for (long time: mTotalTime) {
 			totalTime += time;
 		}
-		Log.e("STM", "totalTime:  " + totalTime);
+/*		Log.e("STM", "totalTime:  " + totalTime);*/
 		return totalTime;
 	}
 	
@@ -91,10 +91,10 @@ public class ServiceTimeManager {
 		//need to be more accurate, current time needs to be time button was clicked or 
 		//when command was said
 		long timePassed = getParsedTime((timeOfAction - mBaseTime));
-		Log.w("STM", "get time passed");
+/*		Log.w("STM", "get time passed");
 		Log.w("STM", "time of Action:  " + timeOfAction);
 		Log.w("STM", "baseTime:  " + mBaseTime);
-		Log.w("STM", "timepassed = " + timePassed);
+		Log.w("STM", "timepassed = " + timePassed);*/
 		return timePassed;
 	}
 	/**Clears the mTotalTime ArrayList*/
