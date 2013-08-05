@@ -2,6 +2,7 @@ package edu.uhmanoa.android.handsfreeworkout.utils;
 
 import java.util.ArrayList;
 
+import android.os.SystemClock;
 import android.util.Log;
 
 /**Manages the time when Workout is in sleeping mode*/
@@ -102,8 +103,12 @@ public class ServiceTimeManager {
 	}
 	
 	/**Gets all of the time that has passed up to the timeOfAction*/
-	public long getUpdateTime(long timeOfAction) {
+	public long getUpdateTime(long timeOfAction, boolean update) {
 		long timePassedRecent = getTimePassed(timeOfAction);
+		//if we're updating, want the timeofAction to be as late as possible
+		if (update) {
+			timePassedRecent = getTimePassed(SystemClock.elapsedRealtime());
+		}
 		long totalTimeSoFar = getTotalTime();
 		long totalTime = totalTimeSoFar + timePassedRecent;
 		return totalTime;

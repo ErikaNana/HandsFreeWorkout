@@ -46,25 +46,19 @@ public class Workout extends Activity implements OnClickListener{
 	protected Intent mCurrentStateIntent;
 	protected Intent mUpdateIntent;
 	protected Intent mSleepingIntent;
-	/**How much time has passed so far*/
-	protected long mAmountTimePassed;
-	/**Text displayed on the actual timer */
-	protected String mTimerText; 
 	protected boolean mInitialCreate; 
 	protected boolean mWorkoutRunning;
 	protected boolean mWorkoutStopped;
 	protected boolean mWorkoutPaused;
 	protected boolean isSleeping;
 	
+	/**How much time has passed so far*/
+	protected long mAmountTimePassed;
 	/**Keeps track of when action was committed*/
 	protected long mTimeOfAction;
 
-	/** Keys for saving and restoring instance data */
-	protected static final String SAVED_TIMER_TEXT_VALUE = "timer text";
-	protected static final String SAVED_TIME_WHEN_STOPPED_VALUE = "time when stopped";
+	/** Key for saving and restoring instance data */
 	protected static final String SAVED_INITIAL_CREATE = "initial create";
-	protected static final String START_BUTTON_TEXT = "start button text";
-/*	protected static final String SAVED_CURRENT_BASE = "saved current base";*/
 	
 	/**Modes for display clock*/
 	protected static final int CLASSIC = 1;
@@ -166,7 +160,6 @@ public class Workout extends Activity implements OnClickListener{
 			//reset initialCreate
 			mInitialCreate =true;
 			createTimer();
-/*			createTimer(0);*/
 			//make it false so when return after announceAction, doens't make a new clock
 			mInitialCreate = false;
 			announceAction(HandsFreeService.INITIAL_CREATE);
@@ -175,14 +168,9 @@ public class Workout extends Activity implements OnClickListener{
 			//for smoother transition of the buttons
 			setStateVariables(true, false, false);
 			setButtons();
-			mStartButton.setText("Resume");
-			//reset
-			//mTimerText = "0 seconds";
-
 			return;
 		}
 		if (mWorkoutPaused) {
-			//resumeTimer();
 			flashText("Resume");
 			announceAction(HandsFreeService.START_BUTTON_RESUME_CLICK);	
 			return;
@@ -196,7 +184,7 @@ public class Workout extends Activity implements OnClickListener{
 	public void pauseButtonClicked() {
 		Log.w("Workout", "pause button is pressed");
 		if (!mWorkoutPaused) {
-			//pauseTimer();
+			mTimer.stop();
 			setStateVariables(false, true, false);
 			setButtons();
 			mCommandText.setText("Pause");
@@ -213,7 +201,6 @@ public class Workout extends Activity implements OnClickListener{
 			}
 			setStateVariables(false, true, true);
 			setButtons();
-			mStartButton.setText("Start");
 			mCommandText.setText("Stop");
 			mCommandText.setTextColor(Color.RED);
 			announceAction(HandsFreeService.STOP_BUTTON_CLICK);
@@ -226,7 +213,7 @@ public class Workout extends Activity implements OnClickListener{
 		}
 
 		String time = (String) mTimer.getText();
-		mTimerText = time;
+/*		mTimerText = time;*/
 		if (!time.equals("")) {
 			switch(mode) {
 				case HIPSTER:{				
@@ -262,22 +249,23 @@ public class Workout extends Activity implements OnClickListener{
 
 			@Override
 			public void onChronometerTick(Chronometer chronometer) {
-				//Log.e("Workout", "time of tick:  " + SystemClock.elapsedRealtime());
-				//do don't overshoot the time displayed
+				//so don't overshoot the time displayed
 				mTimeOfAction = SystemClock.elapsedRealtime();
-				setDisplayClock(HYBRID);
+				//so that display text updates only when the workout is in progress
+				if (mWorkoutRunning) {
+					setDisplayClock(HYBRID);	
+				}
 			}
 		});
 
 		mTimer.setCorrectBaseAndStart(mWorkoutStopped, mWorkoutRunning,mInitialCreate, mWorkoutPaused, mAmountTimePassed);
 		if (!mInitialCreate) {
-			setDisplayClock(HYBRID, mTimerText);
+			setDisplayClock(HYBRID, (String) mTimer.getText());
 			if (!mWorkoutPaused) {
 				mCommandText.setText("");
 			}
 		} 
-		mTimerText = (String) mTimer.getText();
-		mDisplayClock.setText(Utils.getPrettyHybridTime(mTimerText));
+		mDisplayClock.setText(Utils.getPrettyHybridTime((String) mTimer.getText()));
 	}
 	/** Destroys the timer */
 	protected void destroyTimer() {
@@ -288,31 +276,9 @@ public class Workout extends Activity implements OnClickListener{
 		}
 	}
 
-	/** Sets up the pause state */
-	public void pauseTimer () {
-		//save the time when the timer was stopped
-		mAmountTimePassed = mTimer.getBase() - SystemClock.elapsedRealtime();
-		mTimer.stop();
-	}
-
-	/*Resumes the timer */
-	public void resumeTimer() {
-		setStateVariables(true, false, false);
-/*		createTimer(0);*/
-	}
-	/** Called when activity is interrupted, like orientation change */
 	@Override
 	protected void onPause() {
 		Log.w("Workout", "onPause");
-		if (mTimer != null) {
-			mTimerText = (String) mTimer.getText();
-/*			mCurrentBase = mTimer.getBase();*/
-			Log.w("Workout", "(on pause) timer Text:  " + mTimerText);
-			//for persistence
-			if (!mWorkoutPaused) {
-				mAmountTimePassed = mTimer.getBase() - SystemClock.elapsedRealtime();
-			}
-		}
 		isSleeping = true;
 		announceSleeping();
 		//unregister the receiver
@@ -343,14 +309,8 @@ public class Workout extends Activity implements OnClickListener{
 	protected void onSaveInstanceState(Bundle outState) {
 		//store the current values in outState
 		Log.w("Workout", "saving instance state");
-
-		outState.putString(SAVED_TIMER_TEXT_VALUE, mTimerText);
-		outState.putLong(SAVED_TIME_WHEN_STOPPED_VALUE, mAmountTimePassed);
 		outState.putBoolean(SAVED_INITIAL_CREATE, mInitialCreate);
-		outState.putString(START_BUTTON_TEXT, (String) mStartButton.getText());
-/*		Log.w("Workout", "(save) timer text:  " + mTimerText);
-		Log.w("Workout", "(save) time when stopped text:  " + mTimeWhenStopped);
-		Log.w("Workout", "(save) initial create:  " + mInitialCreate);*/
+/*		Log.w("Workout", "(save) initial create:  " + mInitialCreate);*/
 		super.onSaveInstanceState(outState);
 	}
 
@@ -359,18 +319,11 @@ public class Workout extends Activity implements OnClickListener{
 	protected void onRestoreInstanceState(Bundle savedInstanceState) {
 		Log.w("Workout", "restoring instance state");
 		super.onRestoreInstanceState(savedInstanceState);
-		//retrieve the values and set them
+		//retrieve the value and set it
 		//maybe test for null and use Bundle.containsKey() method later
 
-		mTimerText = savedInstanceState.getString(SAVED_TIMER_TEXT_VALUE);
-		mAmountTimePassed = savedInstanceState.getLong(SAVED_TIME_WHEN_STOPPED_VALUE);
 		mInitialCreate = savedInstanceState.getBoolean(SAVED_INITIAL_CREATE);
-		mStartButton.setText(savedInstanceState.getString(START_BUTTON_TEXT));
-
-		Log.w("Workout", "(restore) timer text:  " + mTimerText);
-		Log.w("Workout", "(restore) time when stopped text:  " + mAmountTimePassed);
-		Log.w("Workout", "(restore) initial create:  " + mInitialCreate);
-
+/*		Log.w("Workout", "(restore) initial create:  " + mInitialCreate);*/
 	}
 
 	public void startHandsFreeService() {
@@ -410,6 +363,7 @@ public class Workout extends Activity implements OnClickListener{
 	public class ServiceReceiver extends BroadcastReceiver {
 
 		public static final String SET_CURRENT_STATE = "set current state";
+		public static final String SET_TIME_PASSED = "set time passed";
 		
 		@Override
 		public void onReceive(Context context, Intent intent) {
@@ -422,32 +376,28 @@ public class Workout extends Activity implements OnClickListener{
 				mWorkoutRunning = intent.getBooleanExtra(HandsFreeService.UpdateReceiver.WORKOUT_RUNNING, false);
 				mWorkoutPaused = intent.getBooleanExtra(HandsFreeService.UpdateReceiver.WORKOUT_PAUSED, false);
 				mWorkoutStopped = intent.getBooleanExtra(HandsFreeService.UpdateReceiver.WORKOUT_STOPPED, false);
-				
+				mAmountTimePassed = intent.getLongExtra(SET_TIME_PASSED, 0);
+				Log.w("Workout", "mAmountTimePassed:  " + mAmountTimePassed);
 				//need to wait for set current state to come back
 /*				Log.w("Workout", "(BR) mWorkoutRunning:  " + mWorkoutRunning);
 				Log.w("Workout", "(BR) mWorkoutPaused:  " + mWorkoutPaused);
 				Log.w("Workout", "(BR) mWorkoutStopped:  " + mWorkoutStopped);*/
 				
-				//when app wakes up need a flag?
+				//when app wakes up
 				if (!mInitialCreate) {
-						//persist the time 
 					if (mWorkoutRunning) {
-						//this is why it's still persisting
-/*						createTimer(mCurrentBase);*/
+						mStartButton.setText("Resume");
 					}
-					//case if workout is paused
 					if (mWorkoutPaused) {
-						//create timer to display
 						mCommandText.setText("Pause");
 						mCommandText.setTextColor(Color.YELLOW);
 					}
-
-					//special case if workout is stopped
 					if(mWorkoutStopped) {
-						//create timer to display
+						mStartButton.setText("Start");
 						mCommandText.setText("Stop");
 						mCommandText.setTextColor(Color.RED);
 					}
+					createTimer();
 				}
 
 				//if initial create (set the states so that clock initializes)

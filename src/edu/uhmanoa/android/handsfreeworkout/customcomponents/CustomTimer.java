@@ -26,6 +26,7 @@ public class CustomTimer extends Chronometer{
 		Log.w("CustomTimer", "workout running:  " + workoutRunning);
 		//if initial start up
 		if (initialCreate) {
+			Log.w("CustomTimer", "in initial create");
 			//use "this" keyword because modifying the current object
 			this.setBase(SystemClock.elapsedRealtime());
 			this.start();
@@ -33,23 +34,18 @@ public class CustomTimer extends Chronometer{
 		else {
 			if (workoutRunning) {
 				//amountTimePassed = base - currentTime
+				Log.w("CustomTimer", "in workoutRunning");
 				this.setBase(SystemClock.elapsedRealtime() + amountTimePassed);
 				this.start();
 			}
 			if (workoutStopped) {
+				Log.w("CustomTimer", "in workoutStopped");
 				this.setBase(SystemClock.elapsedRealtime() + amountTimePassed);			
 			}
 			if (mWorkoutPaused) {
+				Log.w("CustomTimer", "in workoutPaused");
 				this.setBase(SystemClock.elapsedRealtime() + amountTimePassed);
 			}
 		}
 	}
-	
-/*	@Override
-	public void stop() {
-		super.stop();
-		Log.e("CustomTimer", "Base time:  " + this.getBase());
-		Log.e("CustomTimer", "currentTime:  " + SystemClock.elapsedRealtime());
-		Log.e("CustomTimer", "actual time passed:  " + (this.getBase() - SystemClock.elapsedRealtime()));
-	}*/
 }

@@ -112,6 +112,9 @@ public class HandsFreeService extends Service implements OnInitListener{
 	/**Keeps track of when an action was actually committed*/
 	protected long mTimeOfAction;
 	
+	/**To get the most accurate update time*/
+	protected static final boolean GET_UPDATE = true;
+	
 	@Override
 	public IBinder onBind(Intent arg0) {
 		return null;
@@ -121,14 +124,11 @@ public class HandsFreeService extends Service implements OnInitListener{
 		Log.w("HFS", "on create of service");
 		IntentFilter getUpdateFilter = new IntentFilter (UpdateReceiver.GET_ACTION);
 		getUpdateFilter.addCategory(Intent.CATEGORY_DEFAULT);
-		IntentFilter currentStateFilter = new IntentFilter(UpdateReceiver.RECEIVE_CURRENT_STATE);
-		currentStateFilter.addCategory(Intent.CATEGORY_DEFAULT);
 		IntentFilter sleepingFilter = new IntentFilter(UpdateReceiver.SLEEPING);
 		sleepingFilter.addCategory(Intent.CATEGORY_DEFAULT);
 	
 		mReceiver = new UpdateReceiver();
 		this.registerReceiver(mReceiver, getUpdateFilter);
-		this.registerReceiver(mReceiver, currentStateFilter);
 		this.registerReceiver(mReceiver, sleepingFilter);
 		
 		mSpeechRecListen = new RecognitionListener() {
@@ -193,16 +193,6 @@ public class HandsFreeService extends Service implements OnInitListener{
 					///////////////////////////////////////////
 					////	FIGURE OUT WHAT TO DO HERE	   ////
 					///////////////////////////////////////////
-					
-					
-/*					if (!mSleeping) {
-						//probably don't need anymore because the state is being held
-						//in HFS.  
-						announceGetCurrentState();
-					}
-					if (mSleeping) {
-						updateBasedOnUI(OFFLINE);
-					}*/
 				}
 				else {	
 					getFeedback(COMMAND_NOT_RECOGNIZED_RESULT);
@@ -250,47 +240,18 @@ public class HandsFreeService extends Service implements OnInitListener{
 				if (mWorkoutPaused) { //resume after pause
 					getFeedback(START_BUTTON_RESUME_CLICK);
 					mTimeManager.setBaseTime(SystemClock.elapsedRealtime());
-/*					if (offline) {
-						mTimeManager.setBaseTime(SystemClock.elapsedRealtime());
-					}*/
-/*					else{
-						announceGetUpdate(START);
-					}*/
 				}
 				break;
 			}
 			case STOP:{
 				mTimeOfAction = SystemClock.elapsedRealtime();
-/*				mTimeManager.addSectionOfTime();*/
-/*				mUpdateTime = ServiceTimeManager.getTotalTimeAndFormat();*/
 				getFeedback(STOP_BUTTON_CLICK);
-/*				mTimeManager.resetTotalTime();*/
-/*				if (offline) {
-					if (mWorkoutRunning) { //stopping the workout
-						mTimeManager.addSectionOfTime();
-					}
-					//calculate how much total time has passed and respond
-					mUpdateTime = ServiceTimeManager.getTotalTimeAndFormat();
-					getFeedback(STOP_BUTTON_CLICK);
-					mTimeManager.resetTotalTime();
-				}*/
-				
-/*				else{
-					announceGetUpdate(STOP);
-				}*/
 				break;
 			}
 			case PAUSE:{
 				mTimeOfAction = SystemClock.elapsedRealtime();
 				if (mWorkoutRunning) { //pausing the workout
 					getFeedback(PAUSE_BUTTON_CLICK);
-/*					mTimeManager.addSectionOfTime();*/
-/*					if (offline) {
-						mTimeManager.addSectionOfTime();
-					}*/
-/*					else {
-						announceGetUpdate(PAUSE);
-					}*/
 					break;
 				}
 				if (mWorkoutPaused) {
@@ -299,26 +260,7 @@ public class HandsFreeService extends Service implements OnInitListener{
 				break;
 			}
 			case UPDATE:{
-/*				if (mWorkoutRunning) {
-					mUpdateTime = ServiceTimeManager.getUpdateTimeFromRaw(mTimeManager.getUpdateTime());
-				}
-				else {
-					mUpdateTime = ServiceTimeManager.getTotalTimeAndFormat();
-				}*/
-				//get the total time passed and respond
-				
-/*				if (offline) {
-					if (mWorkoutRunning) {
-						mUpdateTime = ServiceTimeManager.getUpdateTimeFromRaw(mTimeManager.getUpdateTime());
-					}
-					else {
-						mUpdateTime = ServiceTimeManager.getTotalTimeAndFormat();
-					}*/
-					
 					getFeedback(UPDATE_TIME);
-/*				else {
-					announceGetUpdate(UPDATE);
-				}*/
 				break;
 			}
 			default:{
@@ -476,20 +418,30 @@ public class HandsFreeService extends Service implements OnInitListener{
 		if (mSendCurrentState == null) {
 			mSendCurrentState = new Intent(Workout.ServiceReceiver.SET_CURRENT_STATE);
 		}
-/*		Log.w("HFS", "mWorkoutRunning:  " + mWorkoutRunning);
+		Log.w("HFS", "mWorkoutRunning:  " + mWorkoutRunning);
 		Log.w("HFS", "mWorkoutPaused:  " + mWorkoutPaused);
-		Log.w("HFS", "mWorkoutStopped:  " + mWorkoutStopped);*/
+		Log.w("HFS", "mWorkoutStopped:  " + mWorkoutStopped);
 		
 		mSendCurrentState.putExtra(UpdateReceiver.WORKOUT_RUNNING, mWorkoutRunning);
 		mSendCurrentState.putExtra(UpdateReceiver.WORKOUT_PAUSED, mWorkoutPaused);
 		mSendCurrentState.putExtra(UpdateReceiver.WORKOUT_STOPPED, mWorkoutStopped);
+		
+		if (mWorkoutRunning) {
+			//0 since it doesn't matter what that value is 
+			mSendCurrentState.putExtra(Workout.ServiceReceiver.SET_TIME_PASSED, (0 - mTimeManager.getUpdateTime(0, GET_UPDATE))*1000);
+		}
+		if (mWorkoutPaused) {
+			//since for workoutStopped both pause and stopped are true
+			if (!mWorkoutStopped) {
+				mSendCurrentState.putExtra(Workout.ServiceReceiver.SET_TIME_PASSED, (0 - ServiceTimeManager.getTotalTime())*1000);
+			}
+		}
 		this.sendBroadcast(mSendCurrentState);
 	}
 	
 	public class UpdateReceiver extends BroadcastReceiver {
 		
 		public static final String GET_ACTION = "get update";
-		public static final String RECEIVE_CURRENT_STATE = "receive current state";
 		public static final String SLEEPING = "sleeping";
 		
 		/**Names of the current states and base time*/
@@ -498,10 +450,6 @@ public class HandsFreeService extends Service implements OnInitListener{
 		public static final String WORKOUT_STOPPED = "Workout stopped";
 		public static final String CURRENT_BASE_TIME = "current base time";
 
-		
-		/**Denotes listening state of service*/
-		public static final String START_OR_NOT = "start or not";
-		
 		/**Actual time when action is committed*/
 		public static final String TIME_OF_ACTION = "time of action";
 		
@@ -509,13 +457,7 @@ public class HandsFreeService extends Service implements OnInitListener{
 		public void onReceive(Context context, Intent intent) {
 			String type = intent.getAction();
 			/**Sent in onPause of Workout.  Needed keep the app persistent*/
-			if (type.equals(SLEEPING)) {
-				//manage the time
-/*				if (intent.getLongExtra(CURRENT_BASE_TIME,0) != 0){
-					//this only happens on initial create
-					mTimeManager = new ServiceTimeManager(intent.getLongExtra(CURRENT_BASE_TIME, 0));
-				}*/
-				
+			if (type.equals(SLEEPING)) {				
 				mSleeping = intent.getBooleanExtra(Workout.APP_SLEEPING, false);
 				Log.e("HFS", "APP IS SLEEPING:  " + mSleeping);
 				//update variables if sleeping
@@ -533,14 +475,10 @@ public class HandsFreeService extends Service implements OnInitListener{
 			if (type.equals(GET_ACTION)) {
 				Log.w("HFS", "broadcast received: " + intent.getAction());
 
-				//get the update action and the update string
+				//get the action and when the action was committed
 				int action = intent.getIntExtra(Workout.UPDATE_ACTION, 0);
 				mTimeOfAction = intent.getLongExtra(TIME_OF_ACTION, 0);
-/*				String updateTime = intent.getStringExtra(Workout.UPDATE_TIME_STRING);
-				if (updateTime != "") {
-					//set this as updateText
-					mUpdateTime = updateTime;
-				}*/
+				
 				//have to do it here so can get the base time out of the intent
 				if (action == INITIAL_CREATE) {
 					//like in a restart of a workout
@@ -644,6 +582,9 @@ public class HandsFreeService extends Service implements OnInitListener{
 					mTimeManager.addSectionOfTime(mTimeOfAction);
 				}
 				mUpdateTime = ServiceTimeManager.getTotalTimeAndFormat();
+				//need to put this in before timeManager gets reset
+				Log.w("HFS", "setting the time passed");
+				mSendCurrentState.putExtra(Workout.ServiceReceiver.SET_TIME_PASSED, (0 - ServiceTimeManager.getTotalTime())*1000);
 				//reset
 				mTimeManager.resetTotalTime();
 				mTimeManager = null;
@@ -663,7 +604,7 @@ public class HandsFreeService extends Service implements OnInitListener{
 				//want latest time as possible
 				mTimeOfAction = SystemClock.elapsedRealtime();
 				if (mWorkoutRunning) {
-					mUpdateTime = ServiceTimeManager.getUpdateTimeFromRaw(mTimeManager.getUpdateTime(mTimeOfAction));
+					mUpdateTime = ServiceTimeManager.getUpdateTimeFromRaw(mTimeManager.getUpdateTime(mTimeOfAction, GET_UPDATE));
 				}
 				else {
 					mUpdateTime = ServiceTimeManager.getTotalTimeAndFormat();
@@ -712,6 +653,7 @@ public class HandsFreeService extends Service implements OnInitListener{
 		}
 	}
 	
+	/** This is necessary for the service to run in the foreground*/
 	protected Notification buildNotification(Context context) {
 		Resources resources = context.getResources();
 		PendingIntent pendingIntent = PendingIntent.getActivity(context, 0, new Intent(context,Workout.class), 0);
