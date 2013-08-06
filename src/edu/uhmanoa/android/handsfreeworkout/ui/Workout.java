@@ -251,6 +251,7 @@ public class Workout extends Activity implements OnClickListener{
 				mTimeOfAction = SystemClock.elapsedRealtime();
 				//so that display text updates only when the workout is in progress
 				if (mWorkoutRunning) {
+					mCommandText.setText("");
 					setDisplayClock(HYBRID);	
 				}
 			}
@@ -385,7 +386,6 @@ public class Workout extends Activity implements OnClickListener{
 				if (!mInitialCreate) {
 					if (mWorkoutRunning) {
 						mStartButton.setText("Resume");
-						mCommandText.setText("");
 					}
 					if (mWorkoutPaused) {
 						mCommandText.setText("Pause");
@@ -419,7 +419,6 @@ public class Workout extends Activity implements OnClickListener{
 			if (mHandsFreeIntent == null) {
 				mHandsFreeIntent = new Intent(this, HandsFreeService.class);
 			}
-			Log.w("Workout", "intent:  " + mHandsFreeIntent);
 			this.stopService(mHandsFreeIntent);
 		}
 		Log.e("Workout", "Workout onDestroy");

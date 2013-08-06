@@ -544,7 +544,7 @@ public class HandsFreeService extends Service implements OnInitListener{
 	/**Called after initialization of mTTS*/
 	@Override
 	public void onInit(int status) {
-		Log.w("HFS", "action:  " + action);
+/*		Log.w("HFS", "action:  " + action);*/
 		if (status == TextToSpeech.SUCCESS) {
 			mTTS.setLanguage(Locale.US);
 		}
@@ -649,8 +649,5 @@ public class HandsFreeService extends Service implements OnInitListener{
 		//make the notification disappear from the notification area when it's pressed
 		notificationBuilder.setAutoCancel(true);
 		return notificationBuilder.build();
-	}
-	
-
-	
+	}	
 }

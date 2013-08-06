@@ -19,7 +19,7 @@
             android:name = "edu.uhmanoa.android.handsfreeworkout.ui.Workout">
         </activity>
         <activity
-            android:name="edu.uhmanoa.android.handsfreeworkout.ui.Welcome" >
+            android:name="edu.uhmanoa.android.handsfreeworkout.ui.WelcomeV2" >
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />

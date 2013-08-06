@@ -195,7 +195,7 @@ public class Utils {
 		ViewGroup layout = null;
 		
 		if (whichLayout == WELCOME) {
-			layout = (RelativeLayout) activity.findViewById(R.id.welcome_layout);
+			layout = (RelativeLayout) activity.findViewById(R.id.welcome_v2);
 		}
 		if (whichLayout == WORKOUT) {
 			layout = (LinearLayout) activity.findViewById(R.id.workout_layout);
