@@ -3,5 +3,6 @@
     <color name="LightBlack">#2a2727</color>
     <color name="OffBlack">#121212</color>
     <color name="OffGrey">#C4C4C4</color>
-    
+    <color name="Green">#00FF00</color>
+    <color name="OffWhite">#FEFEFA</color>
 </resources>

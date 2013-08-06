@@ -18,6 +18,7 @@ public class CustomStartButton extends Button {
 	
 	@Override
 	public void setEnabled(boolean enabled) {
+		super.setEnabled(enabled);
 		if (enabled) {
 			this.setTextColor(Color.GREEN);
 		}

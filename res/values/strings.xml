@@ -15,9 +15,12 @@
     <string name="exitText">You are about to leave your workout!  Continue?</string>
     <string name="dialogPositive">I\'m over it</string>
     <string name="dialogNegative">Nope jk!</string>
-    <string name="welcomeTitleV2">What kind of workout would you like to do?</string>
+    <string name="welcomeTitleV2">Pick one to get started</string>
     <string name = "distanceOption">Distance Run</string>
     <string name = "option">+</string>
     <string name = "distanceOptionDescription">Run until you can\'t!  We\'ll track how far you go and how long you take.</string>
-
+	<string name = "intervalOption">Interval Run</string>
+	<string name = "intervalOptionDescription">Focus all your effort into completing each interval.  Just set how many you\'d like to do and how long you\'d like to do it and we\'ll keep you on track. </string>
+	<string name = "customTitleStart">Select One</string>
+	<string name = "customStartButtonText"> Begin </string>
 </resources>
