@@ -21,6 +21,7 @@ import android.view.View;
 import android.view.View.OnClickListener;
 import android.view.Window;
 import android.widget.Chronometer;
+import android.widget.Toast;
 import android.widget.Chronometer.OnChronometerTickListener;
 import android.widget.TextView;
 import edu.uhmanoa.android.handsfreeworkout.R;
@@ -156,17 +157,9 @@ public class Workout extends Activity implements OnClickListener{
 		Log.w("Workout", "start button is pressed");
 		mCommandText.setTextColor(Color.GREEN);
 		if (mWorkoutStopped) {
-			startHandsFreeService();
-			//reset initialCreate
-			mInitialCreate =true;
-			createTimer();
-			//make it false so when return after announceAction, doens't make a new clock
-			mInitialCreate = false;
-			announceAction(HandsFreeService.INITIAL_CREATE);
-			mCommandText.setText("Begin");
-			//for smoother transition of the buttons
-			setStateVariables(true, false, false);
-			setButtons();
+			//launch to  save workout activity later
+			Toast.makeText(getBaseContext(), "Go to save workout", Toast.LENGTH_SHORT).show();
+			mCommandText.setText("");
 			return;
 		}
 		if (mWorkoutPaused) {
@@ -200,6 +193,7 @@ public class Workout extends Activity implements OnClickListener{
 			}
 			setStateVariables(false, true, true);
 			setButtons();
+			mStartButton.setText("Save");
 			mCommandText.setText("Stop");
 			mCommandText.setTextColor(Color.RED);
 			announceAction(HandsFreeService.STOP_BUTTON_CLICK);
@@ -392,7 +386,7 @@ public class Workout extends Activity implements OnClickListener{
 						mCommandText.setTextColor(Color.YELLOW);
 					}
 					if(mWorkoutStopped) {
-						mStartButton.setText("Start");
+						mStartButton.setText("Save");
 						mCommandText.setText("Stop");
 						mCommandText.setTextColor(Color.RED);
 					}

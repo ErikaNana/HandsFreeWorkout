@@ -56,6 +56,7 @@ public class HandsFreeService extends Service implements OnInitListener{
 	protected boolean mSleeping;
 	protected boolean mStop;
 	protected boolean mListening;
+	protected boolean mGPSEnabled;
 
 	/** The time frequency at which check if speech recognizer is still alive */
 	protected static final long UPDATE_FREQUENCY =4000L;
@@ -188,6 +189,9 @@ public class HandsFreeService extends Service implements OnInitListener{
 			}
 		};
 		mHandler = new Handler();
+		//announce that the service is alive
+		Log.w("HFS", "announce that HFS is alive");
+		this.sendBroadcast(new Intent(GPSTrackingService.Receiver.HFS_ALIVE));
 	}
 	/** Want service to continue running until it is explicitly stopped*/
 	@Override
@@ -393,6 +397,7 @@ public class HandsFreeService extends Service implements OnInitListener{
 		destroySpeechRecognizer();
 		stopAndDestroyRecorder();
 		destroyTTS();
+		stopService(new Intent(this,GPSTrackingService.class));
 		this.unregisterReceiver(mReceiver);
 	}
 	
@@ -426,6 +431,7 @@ public class HandsFreeService extends Service implements OnInitListener{
 		
 		public static final String GET_ACTION = "get update";
 		public static final String SLEEPING = "sleeping";
+		public static final String GPS_ENABLED = "gps";
 		
 		/**Names of the current states and base time*/
 		public static final String WORKOUT_RUNNING = "workout running";
@@ -471,7 +477,11 @@ public class HandsFreeService extends Service implements OnInitListener{
 					}
 				}
 				getFeedback(action);
-
+			}
+			/**Received when the GPS service is activated or deactivated*/
+			if (type.equals(GPS_ENABLED)) {
+				Log.w("HFS", "Receive GPS is alive");
+				mGPSEnabled = intent.getBooleanExtra(GPSTrackingService.GPS_STATE, false);
 			}
 		}
 	}
@@ -570,8 +580,9 @@ public class HandsFreeService extends Service implements OnInitListener{
 				mSendCurrentState.putExtra(Workout.ServiceReceiver.SET_TIME_PASSED, (0 - ServiceTimeManager.getTotalTime())*1000);
 				//reset
 				mTimeManager.resetTotalTime();
-				mTimeManager = null;
+
 				setStateVariables(false, true, true);
+				stopService(new Intent(this,GPSTrackingService.class));
 				mTTS.speak("stopping workout.  Workout duration:  "+ mUpdateTime, TextToSpeech.QUEUE_FLUSH, mReplies);
 				break;
 			}

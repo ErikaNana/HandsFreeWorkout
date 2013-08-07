@@ -32,15 +32,16 @@ public class CustomTimer extends Chronometer{
 			this.start();
 		}
 		else {
+			if (workoutStopped) {
+				Log.w("CustomTimer", "in workoutStopped");
+				this.setBase(SystemClock.elapsedRealtime() + amountTimePassed);
+				return;
+			}
 			if (workoutRunning) {
 				//amountTimePassed = base - currentTime
 				Log.w("CustomTimer", "in workoutRunning");
 				this.setBase(SystemClock.elapsedRealtime() + amountTimePassed);
 				this.start();
-			}
-			if (workoutStopped) {
-				Log.w("CustomTimer", "in workoutStopped");
-				this.setBase(SystemClock.elapsedRealtime() + amountTimePassed);			
 			}
 			if (mWorkoutPaused) {
 				Log.w("CustomTimer", "in workoutPaused");

@@ -1,10 +1,18 @@
 package edu.uhmanoa.android.handsfreeworkout.ui;
 
 import android.app.Activity;
+import android.app.AlertDialog;
+import android.app.Dialog;
+import android.app.DialogFragment;
+import android.content.Context;
+import android.content.DialogInterface;
 import android.content.Intent;
 import android.graphics.Color;
 import android.graphics.Typeface;
+import android.location.LocationManager;
 import android.os.Bundle;
+import android.provider.Settings;
+import android.util.Log;
 import android.view.View;
 import android.view.View.OnClickListener;
 import android.view.Window;
@@ -13,8 +21,13 @@ import android.widget.CompoundButton;
 import android.widget.CompoundButton.OnCheckedChangeListener;
 import android.widget.RadioButton;
 import android.widget.TextView;
+
+import com.google.android.gms.common.ConnectionResult;
+import com.google.android.gms.common.GooglePlayServicesUtil;
+
 import edu.uhmanoa.android.handsfreeworkout.R;
 import edu.uhmanoa.android.handsfreeworkout.customcomponents.CustomStartButton;
+import edu.uhmanoa.android.handsfreeworkout.services.GPSTrackingService;
 import edu.uhmanoa.android.handsfreeworkout.services.HandsFreeService;
 import edu.uhmanoa.android.handsfreeworkout.utils.Utils;
 
@@ -24,6 +37,9 @@ public class WelcomeV2 extends Activity implements OnClickListener, OnCheckedCha
 	RadioButton distancePicker;
 	RadioButton intervalPicker;
 	CustomStartButton startButton;
+	LocationManager manager;
+	
+	static final int ENABLE_GPS_REQUEST_CODE = 1;
 	
 	public void onCreate(Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
@@ -57,8 +73,15 @@ public class WelcomeV2 extends Activity implements OnClickListener, OnCheckedCha
 		startButton.setOnClickListener(this);
 		distancePicker.setOnCheckedChangeListener(this);
 		intervalPicker.setOnCheckedChangeListener(this);
+		manager = (LocationManager) getSystemService(Context.LOCATION_SERVICE);
 	}
 
+	@Override
+	public void onResume() {
+		super.onResume();
+		//connect to GoogleServices
+		connectToGoogleServices();
+	}
 	@Override
 	public void onClick(View view) {
 		switch(view.getId()) {
@@ -88,12 +111,15 @@ public class WelcomeV2 extends Activity implements OnClickListener, OnCheckedCha
 				break;
 			}
 			case R.id.customStartButton:{
-				//start the workout activity
 				if (startButton.isEnabled()) {
-					//start the service
-					startService(new Intent(this, HandsFreeService.class));
-					//depending on which workout is selected, launch the correct one
-					this.startActivity(new Intent(this,Workout.class));
+					//check if GPS is enabled
+					if (!manager.isProviderEnabled(LocationManager.GPS_PROVIDER)) {
+						showGPSDialog();
+					}
+					else {
+						startGPS();
+						startWorkout();
+					}
 				}
 			}
 		}
@@ -122,4 +148,131 @@ public class WelcomeV2 extends Activity implements OnClickListener, OnCheckedCha
 			}
 		}
 	}
+	
+	
+	protected void showGPSDialog() {
+		AlertDialog.Builder builder = new AlertDialog.Builder(this, AlertDialog.THEME_DEVICE_DEFAULT_DARK)
+				.setMessage("GPS is not enabled!  Continue?")
+				.setTitle(R.string.app_name);
+		builder.setPositiveButton("Yes", new DialogInterface.OnClickListener() {
+			
+			@Override
+			public void onClick(DialogInterface dialog, int which) {
+				buildNoGPSDialog();
+			}
+		});
+		builder.setNegativeButton("No, enable it now", new DialogInterface.OnClickListener() {
+			
+			@Override
+			public void onClick(DialogInterface dialog, int which) {
+				//show settings to allow for configuration of current location sources
+				startActivityForResult(new Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS), ENABLE_GPS_REQUEST_CODE);
+			}
+		});
+		AlertDialog dialog = builder.create();
+		//so dialog doesn't get closed when touched outside of it
+		dialog.setCanceledOnTouchOutside(false);
+		//so dialog doesn't get dismissed by back button
+		dialog.setCancelable(false);
+		dialog.show();
+	}
+	@Override
+	protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+		super.onActivityResult(requestCode, resultCode, data);
+		if (requestCode == ENABLE_GPS_REQUEST_CODE) {
+			if (manager.isProviderEnabled(LocationManager.GPS_PROVIDER)) {
+				startWorkout();
+			}
+			else {	
+				buildNoGPSDialog();
+			}
+		}
+		if (requestCode == CONNECTION_FAILURE_RESOLUTION_REQUEST) {
+			if (resultCode == Activity.RESULT_OK) {
+				//attempt to connect again
+				connectToGoogleServices();
+			}
+		}
+	}
+	
+	protected void buildNoGPSDialog() {
+		AlertDialog.Builder builder = new AlertDialog.Builder(this, AlertDialog.THEME_DEVICE_DEFAULT_DARK)
+		.setMessage("Workout will continue without GPS enabled")
+		.setTitle(R.string.app_name);
+		builder.setPositiveButton("Ok", new DialogInterface.OnClickListener() {
+			
+			@Override
+			public void onClick(DialogInterface dialog, int which) {
+				startWorkout();
+			}
+		});
+		AlertDialog dialog = builder.create();
+		dialog.setCanceledOnTouchOutside(false);
+		dialog.setCancelable(false);
+		dialog.show();
+	}
+	
+	//starts the workout
+	protected void startWorkout() {
+		//start workout service
+		startService(new Intent(this, HandsFreeService.class));
+		//depending on which workout is selected, launch the correct one
+		this.startActivity(new Intent(this,Workout.class));
+	}
+	
+	protected void startGPS() {
+		startService(new Intent(this, GPSTrackingService.class));
+	}
+	
+	//Define a DialogFragment that displays the error dialog
+	private final static int CONNECTION_FAILURE_RESOLUTION_REQUEST = 9000;
+    public static class ErrorDialogFragment extends DialogFragment {
+        // Global field to contain the error dialog
+        private Dialog mDialog;
+        // Default constructor. Sets the dialog field to null
+        public ErrorDialogFragment() {
+            super();
+            mDialog = null;
+        }
+        // Set the dialog to display
+        public void setDialog(Dialog dialog) {
+            mDialog = dialog;
+        }
+        // Return a Dialog to the DialogFragment.
+        @Override
+        public Dialog onCreateDialog(Bundle savedInstanceState) {
+            return mDialog;
+        }
+    }
+    private void connectToGoogleServices() {
+        // Check that Google Play services is available
+        int resultCode =
+                GooglePlayServicesUtil.
+                        isGooglePlayServicesAvailable(this);
+        // If Google Play services is available
+        if (ConnectionResult.SUCCESS == resultCode) {
+            // In debug mode, log the status
+            Log.w("Location Updates",
+                    "Google Play services is available.");
+        // Google Play services was not available for some reason
+        } else {
+        	Log.w("Welcome", "Google services not available");
+            // Get the error dialog from Google Play services
+            Dialog errorDialog = GooglePlayServicesUtil.getErrorDialog(
+                    resultCode,
+                    this,
+                    CONNECTION_FAILURE_RESOLUTION_REQUEST);
+
+            // If Google Play services can provide an error dialog
+            if (errorDialog != null) {
+                // Create a new DialogFragment for the error dialog
+                ErrorDialogFragment errorFragment =
+                        new ErrorDialogFragment();
+                // Set the dialog in the DialogFragment
+                errorFragment.setDialog(errorDialog);
+                // Show the error dialog in the DialogFragment
+                errorFragment.show(this.getFragmentManager(), "Location");
+            }
+        }
+    }
 }
