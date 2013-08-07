@@ -31,7 +31,6 @@ import edu.uhmanoa.android.handsfreeworkout.services.GPSTrackingService;
 import edu.uhmanoa.android.handsfreeworkout.services.HandsFreeService;
 import edu.uhmanoa.android.handsfreeworkout.utils.Utils;
 
-/**This is a check*/
 public class WelcomeV2 extends Activity implements OnClickListener, OnCheckedChangeListener{
 	Button expandDistance;
 	Button expandInterval;
