@@ -16,30 +16,38 @@ import android.util.Log;
 import android.view.View;
 import android.view.View.OnClickListener;
 import android.view.Window;
-import android.widget.Button;
-import android.widget.CompoundButton;
-import android.widget.CompoundButton.OnCheckedChangeListener;
+import android.widget.AdapterView;
+import android.widget.AdapterView.OnItemClickListener;
+import android.widget.ListView;
 import android.widget.RadioButton;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import com.google.android.gms.common.ConnectionResult;
 import com.google.android.gms.common.GooglePlayServicesUtil;
 
 import edu.uhmanoa.android.handsfreeworkout.R;
 import edu.uhmanoa.android.handsfreeworkout.customcomponents.CustomStartButton;
+import edu.uhmanoa.android.handsfreeworkout.customcomponents.WorkoutType;
+import edu.uhmanoa.android.handsfreeworkout.customcomponents.WorkoutTypeAdapter;
+import edu.uhmanoa.android.handsfreeworkout.customcomponents.WorkoutTypeView;
 import edu.uhmanoa.android.handsfreeworkout.services.GPSTrackingService;
 import edu.uhmanoa.android.handsfreeworkout.services.HandsFreeService;
-import edu.uhmanoa.android.handsfreeworkout.utils.Utils;
 
-public class WelcomeV2 extends Activity implements OnClickListener, OnCheckedChangeListener{
-	Button expandDistance;
-	Button expandInterval;
-	RadioButton distancePicker;
-	RadioButton intervalPicker;
-	CustomStartButton startButton;
-	LocationManager manager;
+public class WelcomeV2 extends Activity implements OnClickListener, OnItemClickListener{
+	protected CustomStartButton mStartButton;
+	protected LocationManager mLocationManager;
+	protected ListView mWorkoutTypeLayout;
+	protected WorkoutTypeView mClickedView;
+	protected boolean mClicked;
+	protected long mWorkoutId;
 	
 	static final int ENABLE_GPS_REQUEST_CODE = 1;
+	static final String DISTANCE_DESCRIPTION = "Run until you can't!  We'll track how far you go " +
+												"and how long you take";
+	static final String INTERVAL_DESCRIPTION = "Focus all your effort into completing each interval.  " +
+												"Just set how many you'd like to do and how long you'd like to" +
+												" do it and we'll keep you on track.";
 	
 	public void onCreate(Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
@@ -52,28 +60,28 @@ public class WelcomeV2 extends Activity implements OnClickListener, OnCheckedCha
 		Typeface font = Typeface.createFromAsset(getAssets(), "fonts/Cubano-Regular.otf");
 		TextView title = (TextView) findViewById(R.id.customTitleStart);
 		title.setTypeface(font);
+				
+		//add the types to the ListView
+		WorkoutType [] types = new WorkoutType[] {
+				new WorkoutType("Distance Run", DISTANCE_DESCRIPTION),
+				new WorkoutType("Interval Run", INTERVAL_DESCRIPTION)
+		};
 		
-		Utils.setLayoutFont(this,this,Utils.WELCOME);
-
-		expandDistance = (Button) findViewById(R.id.expandDistance);
-		expandInterval = (Button) findViewById(R.id.expandInterval);
-		distancePicker = (RadioButton) findViewById(R.id.distanceRadioButton);
-		intervalPicker = (RadioButton) findViewById(R.id.intervalRadioButton);
-		startButton = (CustomStartButton) findViewById(R.id.customStartButton);
-		
-		//style components
-		expandDistance.setTextColor(Color.GREEN);
-		expandDistance.setBackgroundColor(Color.TRANSPARENT);
-		expandInterval.setTextColor(Color.GREEN);
-		expandInterval.setBackgroundColor(Color.TRANSPARENT);
-		
+		WorkoutTypeAdapter adapter = new WorkoutTypeAdapter(this,0, types);
+		ListView listView = (ListView) findViewById(R.id.workoutTypeViewGroup);
+		//adapter provide the data to the listView 
+		listView.setAdapter(adapter);
+		listView.requestFocus();
+		listView.setOnItemClickListener(this);
+		mStartButton = (CustomStartButton) findViewById(R.id.customStartButton);
+/*	    distancePicker = distanceRun.getSelector();
+	    intervalPicker = intervalRun.getSelector();*/
+	    
 		//set button listeners
-		expandDistance.setOnClickListener(this);
-		expandInterval.setOnClickListener(this);
-		startButton.setOnClickListener(this);
-		distancePicker.setOnCheckedChangeListener(this);
-		intervalPicker.setOnCheckedChangeListener(this);
-		manager = (LocationManager) getSystemService(Context.LOCATION_SERVICE);
+		mStartButton.setOnClickListener(this);
+/*		distancePicker.setOnCheckedChangeListener(this);
+		intervalPicker.setOnCheckedChangeListener(this);*/
+		mLocationManager = (LocationManager) getSystemService(Context.LOCATION_SERVICE);
 	}
 
 	@Override
@@ -85,35 +93,10 @@ public class WelcomeV2 extends Activity implements OnClickListener, OnCheckedCha
 	@Override
 	public void onClick(View view) {
 		switch(view.getId()) {
-			case R.id.expandDistance:{
-				TextView description = (TextView) findViewById(R.id.distanceOptionDescription);
-				//toggle the visibility of the options
-				if (description.isShown()) {
-					expandDistance.setTextColor(Color.GREEN);
-					description.setVisibility(View.GONE);
-				}
-				else {
-					expandDistance.setTextColor(Color.rgb(156, 154, 158));
-					description.setVisibility(View.VISIBLE);					
-				}
-				break;
-			}
-			case R.id.expandInterval:{
-				TextView intervalDescription = (TextView) findViewById(R.id.intervalOptionDescription);
-				if (intervalDescription.isShown()) {
-					expandInterval.setTextColor(Color.GREEN);
-					intervalDescription.setVisibility(View.GONE);
-				}
-				else {
-					expandInterval.setTextColor(Color.rgb(156, 154, 158));
-					intervalDescription.setVisibility(View.VISIBLE);	
-				}
-				break;
-			}
 			case R.id.customStartButton:{
-				if (startButton.isEnabled()) {
+				if (mStartButton.isEnabled()) {
 					//check if GPS is enabled
-					if (!manager.isProviderEnabled(LocationManager.GPS_PROVIDER)) {
+					if (!mLocationManager.isProviderEnabled(LocationManager.GPS_PROVIDER)) {
 						showGPSDialog();
 					}
 					else {
@@ -124,30 +107,7 @@ public class WelcomeV2 extends Activity implements OnClickListener, OnCheckedCha
 			}
 		}
 	}
-	
-	//Use a radio group later to manage the radio buttons easier
-	@Override
-	public void onCheckedChanged(CompoundButton button, boolean isChecked) {
-		switch(button.getId()) {
-			case R.id.distanceRadioButton:{
-				if (isChecked) {
-					if (intervalPicker.isChecked()) {
-						intervalPicker.setChecked(false);
-					}
-					startButton.setEnabled(true);
-				}
-				break;
-			}
-			case R.id.intervalRadioButton:{
-				if (isChecked) {
-					if (distancePicker.isChecked()) {
-						distancePicker.setChecked(false);
-					}
-					startButton.setEnabled(true);
-				}
-			}
-		}
-	}
+
 	
 	
 	protected void showGPSDialog() {
@@ -180,7 +140,7 @@ public class WelcomeV2 extends Activity implements OnClickListener, OnCheckedCha
 	protected void onActivityResult(int requestCode, int resultCode, Intent data) {
 		super.onActivityResult(requestCode, resultCode, data);
 		if (requestCode == ENABLE_GPS_REQUEST_CODE) {
-			if (manager.isProviderEnabled(LocationManager.GPS_PROVIDER)) {
+			if (mLocationManager.isProviderEnabled(LocationManager.GPS_PROVIDER)) {
 				startWorkout();
 			}
 			else {	
@@ -275,4 +235,24 @@ public class WelcomeV2 extends Activity implements OnClickListener, OnCheckedCha
             }
         }
     }
+    //Also acts like a radio group
+    //for more than 2, just use a HashMap? or an ArrayList to store the clicked views?
+	@Override
+	public void onItemClick(AdapterView<?> av, View view, int position, long id) {
+		if (!mClicked) {
+			mClickedView = (WorkoutTypeView) view;
+			mClickedView.setTitleColor(Color.BLACK);
+			mClicked = true;
+			mWorkoutId = id;
+		}
+		if (mClicked) {
+			if (!mClickedView.equals((WorkoutTypeView) view)) {
+				mClickedView.setTitleColor(Color.rgb(156, 154, 158));
+				mClickedView = (WorkoutTypeView) view;
+				mClickedView.setTitleColor(Color.BLACK);
+				mWorkoutId = id;
+			}
+		}
+		mStartButton.setEnabled(true);
+	}
 }

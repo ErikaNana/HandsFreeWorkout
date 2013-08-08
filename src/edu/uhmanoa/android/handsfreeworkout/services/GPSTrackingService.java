@@ -19,17 +19,18 @@ import com.google.android.gms.location.LocationRequest;
 
 public class GPSTrackingService extends Service implements GooglePlayServicesClient.ConnectionCallbacks, 
 	GooglePlayServicesClient.OnConnectionFailedListener,LocationListener {
+	
 	/**Name of extra to pass to HFS*/
 	public static final String GPS_STATE = "gps state";
     // Milliseconds per second
     private static final int MILLISECONDS_PER_SECOND = 1000;
     // Update frequency in seconds
-    public static final int UPDATE_INTERVAL_IN_SECONDS = 2;
+    public static final int UPDATE_INTERVAL_IN_SECONDS = 5;
     // Update frequency in milliseconds
     private static final long UPDATE_INTERVAL =
             MILLISECONDS_PER_SECOND * UPDATE_INTERVAL_IN_SECONDS;
     // The fastest update frequency, in seconds
-    private static final int FASTEST_INTERVAL_IN_SECONDS = 1;
+    private static final int FASTEST_INTERVAL_IN_SECONDS = 5;
     // A fast frequency ceiling in milliseconds
     private static final long FASTEST_INTERVAL =
             MILLISECONDS_PER_SECOND * FASTEST_INTERVAL_IN_SECONDS;
@@ -69,6 +70,7 @@ public class GPSTrackingService extends Service implements GooglePlayServicesCli
 		announceGPSAlive(false);
 		mLocationClient.removeLocationUpdates(this);
 		mLocationClient.disconnect();
+		mLocationClient = null;
 		this.unregisterReceiver(mReceiver);
 	}
 	
@@ -79,19 +81,6 @@ public class GPSTrackingService extends Service implements GooglePlayServicesCli
 		this.sendBroadcast(gps);
 	}
 
-	public class Receiver extends BroadcastReceiver{
-		public static final String HFS_ALIVE = "hfs alive";
-		
-		@Override
-		public void onReceive(Context context, Intent intent) {
-			//for initial create
-			if (intent.getAction().equals(HFS_ALIVE)) {
-				Log.w("GPSTrackingService", "Receive HFS is alive");
-				announceGPSAlive(true);
-			}
-		}
-		
-	}
 	//callback method that receives location updates
 	@Override
 	public void onLocationChanged(Location location) {
@@ -133,7 +122,22 @@ public class GPSTrackingService extends Service implements GooglePlayServicesCli
 	@Override
 	public void onDisconnected() {
 		Log.e("GPS", "service disconnected");
+		Toast.makeText(this, "service disconnected", Toast.LENGTH_SHORT).show();
 		// TODO Auto-generated method stub
+		
+	}
+	
+	public class Receiver extends BroadcastReceiver{
+		public static final String HFS_ALIVE = "hfs alive";
+		
+		@Override
+		public void onReceive(Context context, Intent intent) {
+			//for initial create
+			if (intent.getAction().equals(HFS_ALIVE)) {
+				Log.w("GPSTrackingService", "Receive HFS is alive");
+				announceGPSAlive(true);
+			}
+		}
 		
 	}
 }

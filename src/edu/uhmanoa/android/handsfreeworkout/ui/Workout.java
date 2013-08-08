@@ -467,7 +467,12 @@ public class Workout extends Activity implements OnClickListener{
 	
 	@Override
 	public void onBackPressed() {
-		buildDialog().show();
+		if (!mWorkoutStopped) {
+			buildDialog().show();
+		}
+		else {
+			super.onBackPressed();	
+		}
 	}
 	
 	protected AlertDialog buildDialog() {

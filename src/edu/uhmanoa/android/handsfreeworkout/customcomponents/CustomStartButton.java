@@ -2,17 +2,19 @@ package edu.uhmanoa.android.handsfreeworkout.customcomponents;
 
 import android.content.Context;
 import android.graphics.Color;
+import android.graphics.Typeface;
 import android.util.AttributeSet;
 import android.widget.Button;
 
 public class CustomStartButton extends Button {
-
 	public CustomStartButton(Context context) {
 		super(context);
 	}
 	
 	public CustomStartButton(Context context, AttributeSet attrs) {
 		super(context, attrs);
+		Typeface font = Typeface.createFromAsset(context.getAssets(), "fonts/Cubano-Regular.otf");
+		this.setTypeface(font);
 		this.setEnabled(false);
 	}
 	
@@ -26,4 +28,5 @@ public class CustomStartButton extends Button {
 			this.setTextColor(Color.BLACK);
 		}
 	}
+	
 }

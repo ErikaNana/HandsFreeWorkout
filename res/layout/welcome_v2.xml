@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_marginTop="20dp"
     android:id="@+id/welcome_v2"
     android:layout_width="match_parent"
@@ -7,84 +7,26 @@
     android:paddingLeft="5dp"
     android:paddingRight="5dp"
     android:gravity="center"
-    android:orientation="vertical" >"
-	<RadioButton
-	    android:layout_marginTop="40dp"
-	    android:id="@+id/distanceRadioButton"
-	    android:layout_width="wrap_content"
-	    android:layout_height="wrap_content"/>
-	<TextView
-	    android:id= "@+id/distanceOption"
-	    android:layout_marginTop="40dp"
-	    android:layout_width = "wrap_content"
-	    android:layout_height = "wrap_content"
-	    android:textSize = "@dimen/buttonTextSize"
-	    android:text="@string/distanceOption"
-	   	android:layout_toRightOf="@+id/distanceRadioButton">
-	</TextView>
-	<Button
-	    android:id="@+id/expandDistance"
-	    android:layout_width="wrap_content"
-	    android:layout_height="wrap_content"
-	    android:layout_alignTop="@+id/distanceOption"
-	    android:layout_toRightOf="@+id/distanceOption"
-	    android:text="@string/option"
-	    android:textSize="@dimen/optionSelector" />
-	<TextView
-	    android:id = "@+id/distanceOptionDescription"
-	    android:layout_width = "wrap_content"
-	    android:layout_height = "wrap_content"
-	    android:layout_below="@+id/distanceOption"
-	    android:layout_toRightOf="@+id/distanceRadioButton"
-	    android:layout_toLeftOf="@+id/expandDistance"
-	    android:text="@string/distanceOptionDescription"
-	    android:textSize="@dimen/descriptionTextSize"
-	    android:visibility="gone"> 
-	</TextView>
-	<RadioButton
-	    android:id="@+id/intervalRadioButton"
-	    android:layout_width="wrap_content"
-	    android:layout_height="wrap_content"
-		android:layout_below="@+id/distanceRadioButton"
-	    android:layout_alignBaseline="@+id/expandInterval"
-	    android:layout_alignBottom="@+id/expandInterval"/>
-	<TextView
-	    android:id= "@+id/intervalOption"
-	    android:layout_width = "wrap_content"
-	    android:layout_height = "wrap_content"
-	    android:textSize = "@dimen/buttonTextSize"
-	    android:text="@string/intervalOption"
-	    android:layout_below="@+id/distanceOptionDescription"
-	   	android:layout_toRightOf="@+id/intervalRadioButton">
-	</TextView>
-	<Button
-	    android:id="@+id/expandInterval"
-	    android:layout_width="wrap_content"
-	    android:layout_height="wrap_content"
-	    android:layout_alignTop="@+id/intervalOption"
-	    android:layout_toRightOf="@+id/intervalOption"
-	    android:text="@string/option"
-	    android:textSize="@dimen/optionSelector" />
-	<TextView
-	    android:id = "@+id/intervalOptionDescription"
-	    android:layout_width = "wrap_content"
-	    android:layout_height = "wrap_content"
-	    android:layout_below="@+id/intervalOption"
-	    android:text="@string/intervalOptionDescription"
-	    android:textSize="@dimen/descriptionTextSize"
-	    android:layout_toLeftOf="@+id/expandInterval"
-	    android:layout_toRightOf="@+id/intervalRadioButton"
-	    android:visibility="gone"> 
-	</TextView>
+    android:orientation="vertical" >
+
+    <ListView
+        android:id="@+id/workoutTypeViewGroup"
+        android:layout_width="fill_parent"
+        android:layout_height="0dp"
+        android:layout_weight="0.47"
+        android:divider="@null"
+        android:dividerHeight="0dp" >
+	</ListView>
+
 	<edu.uhmanoa.android.handsfreeworkout.customcomponents.CustomStartButton
-	    android:id = "@+id/customStartButton"
+	    android:id="@+id/customStartButton"
 	    android:layout_width="fill_parent"
 	    android:layout_height="wrap_content"
-	    android:gravity="center"
-	    android:text="@string/customStartButtonText"
-	    android:textSize="@dimen/commandTextSize"
 	    android:layout_marginTop="40dp"
-	    android:layout_below = "@+id/intervalOptionDescription"
 	    android:background="@color/LightBlack"
-	    />"
-</RelativeLayout>
+	    android:gravity="center"
+	    android:focusable="false"
+	    android:text="@string/customStartButtonText"
+	    android:textSize="@dimen/commandTextSize" />
+
+</LinearLayout>
