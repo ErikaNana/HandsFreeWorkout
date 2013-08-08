@@ -15,18 +15,19 @@
         android:layout_height="0dp"
         android:layout_weight="0.47"
         android:divider="@null"
-        android:dividerHeight="0dp" >
+        android:dividerHeight="0dp" 
+        android:layout_marginBottom="15dp">
 	</ListView>
 
 	<edu.uhmanoa.android.handsfreeworkout.customcomponents.CustomStartButton
 	    android:id="@+id/customStartButton"
-	    android:layout_width="fill_parent"
+	    android:layout_width="wrap_content"
 	    android:layout_height="wrap_content"
-	    android:layout_marginTop="40dp"
-	    android:background="@color/LightBlack"
+	    android:layout_marginBottom="40dp"
+	    android:background="@drawable/customshape"
 	    android:gravity="center"
 	    android:focusable="false"
 	    android:text="@string/customStartButtonText"
-	    android:textSize="@dimen/commandTextSize" />
+	    android:textSize="@dimen/welcomeTitleTextSize" />
 
 </LinearLayout>
