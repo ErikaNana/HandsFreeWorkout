@@ -24,7 +24,7 @@ public class WorkoutTypeView extends RelativeLayout implements OnClickListener{
 		//after inflated, want this object to be the root ViewGroup of the inflated layout
 		inflater.inflate(R.layout.workout_type_view, this, true);
 		
-		//intialize the variables
+		//initialize the variables
 		mWorkoutTitle = (TextView) findViewById(R.id.workoutTitle);
 		mExpandButton = (Button) findViewById(R.id.expandDescriptionButton);
 		mExpandDescription = (TextView) findViewById(R.id.expandDescription);
