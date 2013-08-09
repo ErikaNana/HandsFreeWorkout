@@ -86,6 +86,8 @@ public class WelcomeV2 extends Activity implements OnClickListener, OnItemClickL
 	@Override
 	public void onResume() {
 		super.onResume();
+		//check if My Tracks is installed
+		//check if GPS is enabled
 		//connect to GoogleServices
 		connectToGoogleServices();
 	}

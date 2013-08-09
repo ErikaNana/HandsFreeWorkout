@@ -6,6 +6,7 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.location.Location;
+import android.location.LocationManager;
 import android.os.Bundle;
 import android.os.IBinder;
 import android.util.Log;
@@ -25,12 +26,12 @@ public class GPSTrackingService extends Service implements GooglePlayServicesCli
     // Milliseconds per second
     private static final int MILLISECONDS_PER_SECOND = 1000;
     // Update frequency in seconds
-    public static final int UPDATE_INTERVAL_IN_SECONDS = 2;
+    public static final int UPDATE_INTERVAL_IN_SECONDS = 5;
     // Update frequency in milliseconds
     private static final long UPDATE_INTERVAL =
             MILLISECONDS_PER_SECOND * UPDATE_INTERVAL_IN_SECONDS;
     // The fastest update frequency, in seconds
-    private static final int FASTEST_INTERVAL_IN_SECONDS = 1;
+    private static final int FASTEST_INTERVAL_IN_SECONDS = 3;
     // A fast frequency ceiling in milliseconds
     private static final long FASTEST_INTERVAL =
             MILLISECONDS_PER_SECOND * FASTEST_INTERVAL_IN_SECONDS;
@@ -40,14 +41,14 @@ public class GPSTrackingService extends Service implements GooglePlayServicesCli
 	LocationRequest mLocationRequest;
 	Location mCurrentLocation;
 	BroadcastReceiver mReceiver;
-	
+	LocationManager mLocationManager;
 	protected boolean initialGPS;
 	
 	@Override
 	public IBinder onBind(Intent arg0) {
 		return null;
 	}
-	
+	/** This is started in WelcomeV2 when start button is clicked */
 	@Override
 	public void onCreate() {
 		IntentFilter aliveFilter = new IntentFilter(Receiver.HFS_ALIVE);
@@ -63,6 +64,9 @@ public class GPSTrackingService extends Service implements GooglePlayServicesCli
 		//set up the location request
 		setUpLocationRequest();
 		initialGPS = true;
+		
+		 mLocationManager= (LocationManager) 
+				getSystemService(Context.LOCATION_SERVICE);
 	}
 	
 	@Override
@@ -90,10 +94,12 @@ public class GPSTrackingService extends Service implements GooglePlayServicesCli
 /*		Log.w("GPS", "currentLocation:  " + mCurrentLocation);
 		Log.w("GPS", "changedLocation:  " + location);*/
 		//update current location
-		String userLocation = Double.toString(location.getLatitude()) + "," +
-						  Double.toString(location.getLongitude());
-		String currentLocation = Double.toString(mCurrentLocation.getLatitude()) + "," +
-				  Double.toString(mCurrentLocation.getLongitude());
+		String userLocation = Double.toString(mCurrentLocation.getLatitude()) + "," +
+						  Double.toString(mCurrentLocation.getLongitude());
+		String currentLocation = Double.toString(location.getLatitude()) + "," +
+				  Double.toString(location.getLongitude());
+		Log.w("GPS", "userLocation:  " + userLocation);
+		Log.w("GPS", "currentLocation:  " + currentLocation);
 		Log.w("GPS", "provider:  " + location.getProvider());
 		if (initialGPS) {
 			Log.w("GPS", "initial gps location");
@@ -102,15 +108,22 @@ public class GPSTrackingService extends Service implements GooglePlayServicesCli
 			return;
 		}
 		float[] results = {1};
-	    Location.distanceBetween(mCurrentLocation.getLatitude(), mCurrentLocation.getLongitude(), 
-					location.getLatitude(), location.getLongitude(), results);
+	    Location.distanceBetween(location.getLatitude(), location.getLongitude(), 
+					mCurrentLocation.getLatitude(), mCurrentLocation.getLongitude(), results);
+	    
+	    //not accurate because this is impossible
+		if (results[0] > 1) {
+			Log.e("GPS", "results is greater:  " + results[0]);
+			Log.w("GPS", "");
+		}
 	    //update mCurrentLocation
 	    mCurrentLocation = location;
 /*	    Log.w("GPS", "length of results:  " + results.length);*/
+		Log.w("GPS", "accuracy:  " + location.getAccuracy());
 	    Log.w("GPS", "results:  " + results[0]);
 		Log.w("GPS", "userLocation:  " + userLocation);
 		Log.w("GPS", "mCurrentLocation:  " +currentLocation);
-		Toast.makeText(getApplicationContext(), "location:  " + userLocation, Toast.LENGTH_SHORT).show();
+		/*Toast.makeText(getApplicationContext(), "location:  " + userLocation, Toast.LENGTH_SHORT).show();*/
 	}
 	/**Called by Location Services when the request to connect the client finishes successfully*/
 	@Override
@@ -158,7 +171,7 @@ public class GPSTrackingService extends Service implements GooglePlayServicesCli
 		
 		@Override
 		public void onReceive(Context context, Intent intent) {
-			//for initial create
+			//for initial create, make sure HFS is alive first 
 			if (intent.getAction().equals(HFS_ALIVE)) {
 				Log.w("GPSTrackingService", "Receive HFS is alive");
 				announceGPSAlive(true);
