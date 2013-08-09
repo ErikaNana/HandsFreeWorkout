@@ -25,12 +25,12 @@ public class GPSTrackingService extends Service implements GooglePlayServicesCli
     // Milliseconds per second
     private static final int MILLISECONDS_PER_SECOND = 1000;
     // Update frequency in seconds
-    public static final int UPDATE_INTERVAL_IN_SECONDS = 5;
+    public static final int UPDATE_INTERVAL_IN_SECONDS = 2;
     // Update frequency in milliseconds
     private static final long UPDATE_INTERVAL =
             MILLISECONDS_PER_SECOND * UPDATE_INTERVAL_IN_SECONDS;
     // The fastest update frequency, in seconds
-    private static final int FASTEST_INTERVAL_IN_SECONDS = 5;
+    private static final int FASTEST_INTERVAL_IN_SECONDS = 1;
     // A fast frequency ceiling in milliseconds
     private static final long FASTEST_INTERVAL =
             MILLISECONDS_PER_SECOND * FASTEST_INTERVAL_IN_SECONDS;
@@ -41,6 +41,7 @@ public class GPSTrackingService extends Service implements GooglePlayServicesCli
 	Location mCurrentLocation;
 	BroadcastReceiver mReceiver;
 	
+	protected boolean initialGPS;
 	
 	@Override
 	public IBinder onBind(Intent arg0) {
@@ -61,6 +62,7 @@ public class GPSTrackingService extends Service implements GooglePlayServicesCli
 		mLocationClient.connect();
 		//set up the location request
 		setUpLocationRequest();
+		initialGPS = true;
 	}
 	
 	@Override
@@ -84,9 +86,30 @@ public class GPSTrackingService extends Service implements GooglePlayServicesCli
 	//callback method that receives location updates
 	@Override
 	public void onLocationChanged(Location location) {
+		//get distance between current point and previous point
+/*		Log.w("GPS", "currentLocation:  " + mCurrentLocation);
+		Log.w("GPS", "changedLocation:  " + location);*/
+		//update current location
 		String userLocation = Double.toString(location.getLatitude()) + "," +
 						  Double.toString(location.getLongitude());
-		Log.w("GPS", "location:  " + userLocation);
+		String currentLocation = Double.toString(mCurrentLocation.getLatitude()) + "," +
+				  Double.toString(mCurrentLocation.getLongitude());
+		Log.w("GPS", "provider:  " + location.getProvider());
+		if (initialGPS) {
+			Log.w("GPS", "initial gps location");
+			mCurrentLocation = location;
+			initialGPS = false;
+			return;
+		}
+		float[] results = {1};
+	    Location.distanceBetween(mCurrentLocation.getLatitude(), mCurrentLocation.getLongitude(), 
+					location.getLatitude(), location.getLongitude(), results);
+	    //update mCurrentLocation
+	    mCurrentLocation = location;
+/*	    Log.w("GPS", "length of results:  " + results.length);*/
+	    Log.w("GPS", "results:  " + results[0]);
+		Log.w("GPS", "userLocation:  " + userLocation);
+		Log.w("GPS", "mCurrentLocation:  " +currentLocation);
 		Toast.makeText(getApplicationContext(), "location:  " + userLocation, Toast.LENGTH_SHORT).show();
 	}
 	/**Called by Location Services when the request to connect the client finishes successfully*/
@@ -108,6 +131,9 @@ public class GPSTrackingService extends Service implements GooglePlayServicesCli
 		mLocationRequest.setInterval(UPDATE_INTERVAL);
 		//set the fastest update interval
 		mLocationRequest.setFastestInterval(FASTEST_INTERVAL);
+/*		//set the minimum displacement between location updates in meters
+
+		mLocationRequest.setSmallestDisplacement(1);*/
 	}
 	
 	/**Called if attempt to Location Services fails*/

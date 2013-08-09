@@ -37,21 +37,25 @@ public class WelcomeV2 extends Activity implements OnClickListener, OnItemClickL
 	protected LocationManager mLocationManager;
 	protected ListView mWorkoutTypeLayout;
 	protected WorkoutTypeView mClickedView;
+	
 	protected boolean mClicked;
 	protected long mWorkoutId;
 	
 	static final int ENABLE_GPS_REQUEST_CODE = 1;
-	static final String DISTANCE_DESCRIPTION = "Run until you can't!  We'll track how far you go " +
-												"and how long you take";
+	static final String DISTANCE_DESCRIPTION = "Run until you can't!  We'll record how far you go " +
+											   "and how long you take";
 	static final String INTERVAL_DESCRIPTION = "Focus all your effort into completing each interval.  " +
-												"Just set how many you'd like to do and how long you'd like to" +
-												" do it and we'll keep you on track.";
-	
+											   "Just set how many you'd like to do and how long you'd like to" +
+											   " do it and we'll keep you on track.";
+	static final String WEIGHTS_DESCRIPTION = "Change it up! Pick your excercises and your reps.  " + 
+											  "Let's get to it.";
+			
 	public void onCreate(Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
 		
 		requestWindowFeature(Window.FEATURE_CUSTOM_TITLE);
 		setContentView(R.layout.welcome_v2);
+		//set a custom title bar
 		getWindow().setFeatureInt(Window.FEATURE_CUSTOM_TITLE, R.layout.title_bar);
 		
 		//set the font for the title bar
@@ -62,7 +66,8 @@ public class WelcomeV2 extends Activity implements OnClickListener, OnItemClickL
 		//add the types to the ListView
 		WorkoutType [] types = new WorkoutType[] {
 				new WorkoutType("Distance Run", DISTANCE_DESCRIPTION),
-				new WorkoutType("Interval Run", INTERVAL_DESCRIPTION)
+				new WorkoutType("Interval Run", INTERVAL_DESCRIPTION),
+				new WorkoutType("Weightlifting", WEIGHTS_DESCRIPTION)
 		};
 		
 		WorkoutTypeAdapter adapter = new WorkoutTypeAdapter(this,0, types);
@@ -71,14 +76,10 @@ public class WelcomeV2 extends Activity implements OnClickListener, OnItemClickL
 		listView.setAdapter(adapter);
 		listView.requestFocus();
 		listView.setOnItemClickListener(this);
+		
 		mStartButton = (CustomStartButton) findViewById(R.id.customStartButton);
-/*	    distancePicker = distanceRun.getSelector();
-	    intervalPicker = intervalRun.getSelector();*/
-	    
-		//set button listeners
 		mStartButton.setOnClickListener(this);
-/*		distancePicker.setOnCheckedChangeListener(this);
-		intervalPicker.setOnCheckedChangeListener(this);*/
+		
 		mLocationManager = (LocationManager) getSystemService(Context.LOCATION_SERVICE);
 	}
 
@@ -234,7 +235,6 @@ public class WelcomeV2 extends Activity implements OnClickListener, OnItemClickL
         }
     }
     //Also acts like a radio group
-    //for more than 2, just use a HashMap? or an ArrayList to store the clicked views?
 	@Override
 	public void onItemClick(AdapterView<?> av, View view, int position, long id) {
 		if (!mClicked) {
