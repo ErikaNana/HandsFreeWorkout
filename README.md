@@ -1,5 +1,7 @@
 HandsFreeWorkout
 ----------------
+
+A complete description of the project can be found <a href = "http://erikanana.wordpress.com/project-1/">here</a>
 ####Stage 1
 Implement voice recognition continuously.  Ability to recognize stop, start, pause and update commands. <img src="http://www.wiredsystems.com/blog/wp-content/uploads/2012/05/checkmark.jpg" width = "10" height = "10"/>
 ####Stage 2
